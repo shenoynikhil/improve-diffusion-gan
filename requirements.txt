@@ -1,0 +1,4 @@
+# should run with any conda environment with python=3.6
+matplotlib
+pandas
+pytorch_lightning

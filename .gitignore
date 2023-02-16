@@ -1,0 +1,8 @@
+# folders not for github repo
+data/
+output/
+
+# random generated files
+__pycache__
+.vscode
+.ipynb_checkpoints
