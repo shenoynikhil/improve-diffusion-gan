@@ -1,4 +1,4 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/cifar10/acgan
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/cifar10/vanilla_gan
 
 datamodule:
   _target_: src.datamodule.BaseDataModule
@@ -23,17 +23,15 @@ trainer:
   logger: false
 
 model:
-  _target_: src.models.ACGAN
+  _target_: src.models.VanillaGAN
   lr: 0.0001
   output_dir: ${output_dir}
   generator:
-    _target_: src.models.ConditionalGenerator
+    _target_: src.models.Generator
     channels: 3
     img_size: 32
-    n_classes: 10
     latent_dim: 100
   discriminator:
-    _target_: src.models.ConditionalDiscriminator
+    _target_: src.models.Discriminator
     channels: 3
     img_size: 32
-    n_classes: 10

@@ -1,8 +1,8 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/cifar10/default
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/mnist/wgan
 
 datamodule:
   _target_: src.datamodule.BaseDataModule
-  data_type: cifar10
+  data_type: mnist
   batch_size: 100
   transforms:
     _target_: torchvision.transforms.Compose

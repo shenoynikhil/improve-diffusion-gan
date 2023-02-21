@@ -1,4 +1,4 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/mnist/default
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/mnist/acgan
 
 datamodule:
   _target_: src.datamodule.BaseDataModule
