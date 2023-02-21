@@ -17,7 +17,7 @@ pip install -r requirements.txt
 ### Running An Experiment
 Select a experiment config from `experiments/` and run it with the following command:
 ```bash
-python src/train.py --path experiments/<experiment_name>.yaml
+python train.py --path experiments/<experiment_name>.yaml
 ```
 
 ### Pre-Commit Hooks
