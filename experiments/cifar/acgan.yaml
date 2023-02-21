@@ -1,0 +1,25 @@
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/cifar10/default
+
+datamodule:
+  data_type: cifar10
+  batch_size: 100
+
+trainer:
+  _target_:
+  n_epochs: 100
+
+model:
+  _target_: src.models.ACGAN
+  generator:
+    _target_: src.models.ConditionalGenerator
+    channels: 3
+    img_size: 32
+    n_classes: 10
+    latent_dim: 100
+  discriminator:
+    _target_: src.models.ConditionalDiscriminator
+    channels: 3
+    img_size: 32
+    n_classes: 10
+  optimizer_config:
+    lr: 0.0002

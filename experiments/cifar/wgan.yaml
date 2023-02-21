@@ -1,0 +1,27 @@
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/cifar10/default
+
+datamodule:
+  data_type: cifar10
+  batch_size: 100
+
+trainer:
+  _target_: pytorch_lightning.Trainer
+  accelerator: auto
+  devices: 1
+  max_epochs: 10
+  default_root_dir: ${output_dir}
+  logger: false
+
+model:
+  _target_: src.models.WGAN_GP
+  critic_iter: 5
+  lambda_term: 10
+  generator:
+    _target_: src.models.wgan.Generator
+    channels: 3
+    latent_dim: 100
+  discriminator:
+    _target_: src.models.wgan.Discriminator
+    channels: 3
+  optimizer_config:
+    lr: 0.0002
