@@ -19,6 +19,7 @@ import pytorch_lightning as pl
 import yaml
 from attrdict import AttrDict
 from hydra.utils import instantiate
+from omegaconf import OmegaConf
 
 sys.path.append("..")
 
@@ -44,7 +45,7 @@ def main(config: dict):
 
     # get trainer for gan training
     logging.info("Creating Trainer")
-    trainer = instantiate(config.get("trainer"))
+    trainer = instantiate(config.get("trainer"), default_root_dir=config.get("output_dir"))
 
     # fit the gan
     logging.info("Fitting the GAN")
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     opt = parser.parse_args()
 
     # read from yaml
-    opt = yaml.safe_load(Path(opt.path).read_text())
+    opt = OmegaConf.create(yaml.safe_load(Path(opt.path).read_text()))
     # check config
     check_config(opt)
 

@@ -4,6 +4,7 @@
 - training_step given batch and optimizer_idx (whether to optimize generator or discriminator)
 """
 
+import os
 from collections import defaultdict
 
 import torch
@@ -26,10 +27,21 @@ class ACGAN(LightningModule):
         Learning rate for the optimizer
     """
 
-    def __init__(self, generator, discriminator, lr):
+    def __init__(self, generator, discriminator, lr, output_dir: str):
         super().__init__()
         self.generator = generator
         self.discriminator = discriminator
+
+        assert hasattr(generator, "latent_dim") and hasattr(
+            self.generator, "n_classes"
+        ), "Generator must have latent_dim attribute and n_classes attribute"
+        self.latent_dim = generator.latent_dim
+        self.n_classes = generator.n_classes
+
+        # check output dir for saving generated images
+        self.output_dir = os.path.join(output_dir, "gen_images")
+        os.makedirs(self.output_dir, exist_ok=True)
+
         self.lr = lr
 
     def configure_optimizers(self):
@@ -70,8 +82,8 @@ class ACGAN(LightningModule):
         fake = torch.zeros(batch_size, 1).type_as(imgs)
 
         # generate noise
-        z = torch.normal(0, 1, (batch_size, self.opt.latent_dim)).type_as(imgs)
-        gen_labels = torch.randint(0, self.opt.n_classes, (batch_size,)).type_as(labels)
+        z = torch.normal(0, 1, (batch_size, self.latent_dim)).type_as(imgs)
+        gen_labels = torch.randint(0, self.n_classes, (batch_size,)).type_as(labels)
 
         # Generate a batch of images
         gen_imgs = self.generator(z, gen_labels)
@@ -152,13 +164,13 @@ class ACGAN(LightningModule):
                 gen_imgs=gen_imgs,
                 n_row=10,
                 epochs_done=self.current_epoch,
-                output_dir=self.opt.output_dir,
+                output_dir=self.output_dir,
             )
 
     def generate_images(self, batch_size: int):
-        n_cls = self.opt.n_classes
+        n_cls = self.n_classes
         with torch.no_grad():
             return self(
-                torch.normal(0, 1, (batch_size, self.opt.latent_dim)).to(self.device),
+                torch.normal(0, 1, (batch_size, self.latent_dim)).to(self.device),
                 torch.randint(0, n_cls, (batch_size)).to(self.device),
             )

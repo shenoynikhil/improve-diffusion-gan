@@ -40,6 +40,9 @@ def generate_and_save_images(
 class ConditionalGenerator(nn.Module):
     def __init__(self, n_classes: int, img_size: int, channels: int, latent_dim: int = 100):
         super(ConditionalGenerator, self).__init__()
+        self.n_classes = n_classes
+        self.latent_dim = latent_dim
+        self.channels = channels
 
         self.label_emb = nn.Embedding(n_classes, latent_dim)
 

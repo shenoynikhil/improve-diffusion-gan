@@ -1,5 +1,7 @@
 """LightningModule to setup WACGAN setup.
 """
+import os
+
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -16,6 +18,8 @@ class Generator(nn.Module):
         # Filters [1024, 512, 256]
         # Input_dim = 100
         # Output_dim = C (number of channels)
+        self.latent_dim = latent_dim
+        self.channels = channels
 
         self.main_module = nn.Sequential(
             # Z latent vector 100
@@ -118,6 +122,7 @@ class WGAN_GP(ACGAN):
         critic_iter: int = 5,
         lambda_term: int = 10,
         lr: float = 0.002,
+        output_dir: str = None,
     ):
         pl.LightningModule.__init__(self)
         self.generator = generator
@@ -129,8 +134,15 @@ class WGAN_GP(ACGAN):
         self.lambda_term = lambda_term
 
         # set latent_dim
-        assert hasattr(self.generator, "latent_dim"), "Generator must have attribute latent_dim"
+        assert hasattr(self.generator, "latent_dim") and hasattr(
+            self.generator, "channels"
+        ), "Generator must have attribute latent_dim and channels"
         self.latent_dim = self.generator.latent_dim
+        self.channels = self.generator.channels
+
+        # check output dir for saving generated images
+        self.output_dir = os.path.join(output_dir, "gen_images")
+        os.makedirs(self.output_dir, exist_ok=True)
 
         self.lr = lr
 
@@ -163,7 +175,7 @@ class WGAN_GP(ACGAN):
         fake = torch.zeros(batch_size, 1).type_as(imgs)
 
         # generate images, will be used in both optimizer (generator and discriminator) updates
-        z = torch.randn((batch_size, self.opt.latent_dim, 1, 1)).type_as(imgs)
+        z = torch.randn((batch_size, self.latent_dim, 1, 1)).type_as(imgs)
         # get generated images
         gen_imgs = self.generator(z)
 
@@ -234,7 +246,7 @@ class WGAN_GP(ACGAN):
     def compute_gradient_penalty(self, real_samples, fake_samples):
         """Calculates the gradient penalty loss for WGAN GP"""
         # Random weight term for interpolation between real and fake samples
-        alpha = torch.rand((real_samples.size(0), self.opt.channels, 1, 1)).to(self.device)
+        alpha = torch.rand((real_samples.size(0), self.channels, 1, 1)).to(self.device)
 
         # Get random interpolation between real and fake samples
         interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
@@ -261,5 +273,5 @@ class WGAN_GP(ACGAN):
         """Generate Images function"""
         with torch.no_grad():
             return self(
-                torch.randn((batch_size, self.opt.latent_dim, 1, 1)).to(self.device),
+                torch.randn((batch_size, self.latent_dim, 1, 1)).to(self.device),
             )
