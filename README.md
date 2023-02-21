@@ -19,3 +19,10 @@ Select a experiment config from `experiments/` and run it with the following com
 ```bash
 python src/train.py --path experiments/<experiment_name>.yaml
 ```
+
+### Pre-Commit Hooks
+We use [pre-commit](https://pre-commit.com/) to run a set of checks on the code before committing. To install the hooks, run:
+```bash
+pip install pre-commit
+pre-commit install
+```
