@@ -10,7 +10,6 @@ python src/train.py --path <path to config>
 import argparse
 import logging
 import os
-import sys
 from datetime import datetime
 from os.path import join
 from pathlib import Path
@@ -20,8 +19,6 @@ import yaml
 from attrdict import AttrDict
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
-
-sys.path.append("..")
 
 from src.commons import check_config  # noqa: E402
 

@@ -27,13 +27,6 @@ def check_config(opt: dict):
     for key in keys:
         assert key in datamodule_cfg, f"{key} not specified in config"
 
-    # check model config
-    model_cfg = opt.get("model")
-    # check if the following keys exist
-    keys = ["network", "optimizer"]
-    for key in keys:
-        assert key in model_cfg, f"{key} not specified in config"
-
 
 def get_trainer(
     opt,
