@@ -8,7 +8,8 @@ python run.py --path=experiments/default.py
 # Authors: Mishaal Kazmi, Nikhil Shenoy
 
 import sys
-sys.path.append('.')
+
+sys.path.append(".")
 
 import argparse
 import logging
@@ -24,7 +25,7 @@ from attrdict import AttrDict
 
 from datamodule import BaseDataModule
 from models import ACGAN, FID, WGAN_GP, SaveGeneratedImages
-from utils import get_trainer, check_config
+from utils import check_config, get_trainer
 
 # Set so as to pick checkpoints from the right place
 os.environ[
@@ -55,7 +56,7 @@ def main(opt: dict):
         num_workers=opt.get("num_workers", 1),
         channels=opt.get("channels", 3),
         dataset_frac=opt.get("dataset_frac", 1.0),
-        multi_label=opt.get('target_multi_label', False),
+        multi_label=opt.get("target_multi_label", False),
         seed=seed,
     )
 
@@ -122,7 +123,7 @@ if __name__ == "__main__":
         datetime.now().strftime("%d_%m_%Y-%H_%M"),
     )
     os.makedirs(opt["output_dir"], exist_ok=False)
-    
+
     # setup logging directory
     logging.basicConfig(
         filename=join(opt.get("output_dir"), opt.get("log_dir", "output.log")),

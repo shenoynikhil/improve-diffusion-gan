@@ -1,7 +1,6 @@
-from models.gan_utils import (FID, SaveGeneratedImages,
-                              generate_and_save_images)
-from models.wgan import WGAN_GP
 from models.acgan import ACGAN
+from models.gan_utils import FID, SaveGeneratedImages, generate_and_save_images
+from models.wgan import WGAN_GP
 
 __all__ = [
     "FID",

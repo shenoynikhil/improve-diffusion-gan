@@ -87,7 +87,7 @@ class BaseDataModule(pl.LightningDataModule):
             )
         else:
             raise NotImplementedError
-                
+
     def train_dataloader(self):
         """Returns train dataloader"""
         return DataLoader(
@@ -96,7 +96,7 @@ class BaseDataModule(pl.LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
         )
-    
+
     def test_dataloader(self):
         """Returns test dataloader"""
         return DataLoader(
