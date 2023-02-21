@@ -1,4 +1,5 @@
 """Utils for running the experiments"""
+import os
 from os.path import join
 
 import torch
@@ -14,6 +15,33 @@ def weights_init_normal(m):
     elif isinstance(m, torch.nn.BatchNorm2d):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+
+
+def check_config(opt: dict):
+    """Checks if the config is valid"""
+    # check if output directory exists
+    assert "output_dir" in opt, "Output directory not specified in config"
+    if not os.path.exists(opt["output_dir"]):
+        os.makedirs(opt["output_dir"])
+
+    # check if the following keys exist
+    keys = ["datamodule", "trainer", "model"]
+    for key in keys:
+        assert key in opt, f"{key} not specified in config"
+
+    # check if datamodule key exists
+    datamodule_cfg = opt.get("datamodule")
+    # check if the following keys exist
+    keys = ["data_type"]
+    for key in keys:
+        assert key in datamodule_cfg, f"{key} not specified in config"
+
+    # check model config
+    model_cfg = opt.get("model")
+    # check if the following keys exist
+    keys = ["network", "optimizer"]
+    for key in keys:
+        assert key in model_cfg, f"{key} not specified in config"
 
 
 def get_trainer(

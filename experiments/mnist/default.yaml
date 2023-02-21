@@ -1,16 +1,15 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/output/mnist/default
-data_path: /scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/data/mnist
-gen_images_dir: /scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/output/mnist/skip-attack-size32/13_11_2022-15_41/gen_images
-gen_test_images_dir: /scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/output/mnist/skip-attack-size32/13_11_2022-15_41/gen_test_images
-net_f_pretrained_path: /scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/output/mnist/net-f-g-train/13_11_2022-16_49/net_f/epoch=99.ckpt
-net_g_pretrained_path: /scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/output/mnist/net-f-g-train/13_11_2022-16_49/net_g/epoch=99.ckpt
-n_epochs: 100
-batch_size: 100
-lr: 0.0002
-b1: 0.5
-b2: 0.999
-latent_dim: 100
-n_classes: 10
-img_size: 32
-channels: 1
-num_workers: 1
+output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/mnist/default
+
+datamodule:
+  data_type: mnist
+  batch_size: 100
+
+trainer:
+  n_epochs: 100
+
+model:
+  network: wgan_gp
+  optimizer:
+    lr: 0.0002
+    b1: 0.5
+    b2: 0.999
