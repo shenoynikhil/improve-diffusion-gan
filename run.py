@@ -7,6 +7,9 @@ python run.py --path=experiments/default.py
 """
 # Authors: Mishaal Kazmi, Nikhil Shenoy
 
+import sys
+sys.path.append('.')
+
 import argparse
 import logging
 import os
@@ -19,14 +22,14 @@ import torchvision.transforms as transforms
 import yaml
 from attrdict import AttrDict
 
-from datamodule import MIAExperimentDataModule
-from models import ACGAN, FID, WACGAN_GP, WGAN_GP, SaveGeneratedImages, WACGAN_GP_MultiLabel
-from utils import get_trainer
+from datamodule import BaseDataModule
+from models import ACGAN, FID, WGAN_GP, SaveGeneratedImages
+from utils import get_trainer, check_config
 
 # Set so as to pick checkpoints from the right place
 os.environ[
     "TORCH_HOME"
-] = "/scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/data/checkpoints"
+] = "/scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/data/checkpoints"
 
 
 def main(opt: dict):
@@ -36,9 +39,10 @@ def main(opt: dict):
     logging.info(f"Starting Experiment with seed: {seed}")
 
     # get dataloader
-    logging.info(f"Creating dataloader using dataset from path: {opt.data_path}")
-    dm = MIAExperimentDataModule(
-        data_path=opt.data_path,
+    dm_config = opt.get("datamodule")
+    logging.info(f"Creating dataloader using dataset of type: {dm_config.data_type}")
+    dm = BaseDataModule(
+        data_type=dm_config.data_type,
         transforms=transforms.Compose(
             [
                 transforms.Resize((opt.img_size, opt.img_size)),
@@ -63,12 +67,8 @@ def main(opt: dict):
 
     if gan_type == "ACGAN":
         gan = ACGAN(opt)
-    elif gan_type == "WACGAN_GP":
-        gan = WACGAN_GP(opt)
     elif gan_type == "WGAN_GP":
         gan = WGAN_GP(opt)
-    elif gan_type == "WACGAN_GP_MultiLabel":
-        gan = WACGAN_GP_MultiLabel(opt)
     else:
         raise NotImplementedError
 
@@ -100,13 +100,6 @@ def main(opt: dict):
     logging.info("Fitting the GAN")
     trainer.fit(gan, dataloader)
 
-    # get gen_images_dir and gen_test_images_dir (basically the last one)
-    save_images_cb = [
-        x for x in trainer.callbacks if isinstance(x, SaveGeneratedImages)
-    ][0]
-    gen_images_dir = save_images_cb.gen_images_dirs[-1]
-    gen_test_images_dir = save_images_cb.gen_test_images_dirs[-1]
-
 
 if __name__ == "__main__":
     # parameter settings
@@ -114,25 +107,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path",
         type=str,
-        default="/scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/experiments/mnist.yaml",
         help="Path to experiment config",
     )
     opt = parser.parse_args()
 
     # read from yaml
     opt = yaml.safe_load(Path(opt.path).read_text())
+    # check config
+    check_config(opt)
 
     # create output directory
     opt["output_dir"] = join(
-        opt.get(
-            "output_dir",
-            "/scratch/st-jiaruid-1/shenoy/projects/black-box-priv-audit/output/",
-        ),
+        opt.get("output_dir"),
         datetime.now().strftime("%d_%m_%Y-%H_%M"),
     )
-
-    # setup logging directory
     os.makedirs(opt["output_dir"], exist_ok=False)
+    
+    # setup logging directory
     logging.basicConfig(
         filename=join(opt.get("output_dir"), opt.get("log_dir", "output.log")),
         filemode="a",
