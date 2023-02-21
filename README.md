@@ -13,3 +13,9 @@ conda install pytorch torchvision torchaudio pytorch-cuda=11.6 -c pytorch -c nvi
 # install other dependencies
 pip install -r requirements.txt
 ```
+
+#### Running An Experiment
+Select a experiment config from `experiments/` and run it with the following command:
+```bash
+python src/train.py --path experiments/<experiment_name>.yaml
+```
