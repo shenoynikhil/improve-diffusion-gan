@@ -26,9 +26,7 @@ def generate_and_save_images(
             counter += 1
 
 
-def focal_binary_cross_entropy(
-    inputs, targets, gamma=2, alpha=1, logits=True, reduce=True
-):
+def focal_binary_cross_entropy(inputs, targets, gamma=2, alpha=1, logits=True, reduce=True):
     """Computes focal_loss given inputs and targets"""
     if logits:
         BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduce=False)

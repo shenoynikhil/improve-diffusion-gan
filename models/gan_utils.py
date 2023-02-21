@@ -157,9 +157,7 @@ def compute_metrics(
         fake_pred = torch.sigmoid(fake_pred)
 
     # Calculate discriminator accuracy
-    pred = np.concatenate(
-        [real_pred.data.cpu().numpy(), fake_pred.data.cpu().numpy()], axis=0
-    )
+    pred = np.concatenate([real_pred.data.cpu().numpy(), fake_pred.data.cpu().numpy()], axis=0)
     gt = np.concatenate([valid.data.cpu().numpy(), fake.data.cpu().numpy()], axis=0)
     # d_acc = np.mean(np.argmax(pred, axis=1) == gt)
     pred = np.where(pred >= 0.5, 1, 0)
@@ -169,9 +167,7 @@ def compute_metrics(
         class_pred = np.concatenate(
             [real_aux.data.cpu().numpy(), fake_aux.data.cpu().numpy()], axis=0
         )
-        c_gt = np.concatenate(
-            [labels.data.cpu().numpy(), gen_labels.data.cpu().numpy()], axis=0
-        )
+        c_gt = np.concatenate([labels.data.cpu().numpy(), gen_labels.data.cpu().numpy()], axis=0)
         d_class_acc = np.mean(np.argmax(class_pred, axis=1) == c_gt)
     else:
         # considering multi label binary case, therefore num_classes = 2
@@ -199,9 +195,7 @@ def compute_metrics_no_aux(
         fake_pred = torch.sigmoid(fake_pred)
 
     # Calculate discriminator accuracy
-    pred = np.concatenate(
-        [real_pred.data.cpu().numpy(), fake_pred.data.cpu().numpy()], axis=0
-    )
+    pred = np.concatenate([real_pred.data.cpu().numpy(), fake_pred.data.cpu().numpy()], axis=0)
     gt = np.concatenate([valid.data.cpu().numpy(), fake.data.cpu().numpy()], axis=0)
     # d_acc = np.mean(np.argmax(pred, axis=1) == gt)
     pred = np.where(pred >= 0.5, 1, 0)
@@ -223,6 +217,10 @@ def sample_image(gen_imgs, n_row: int, epochs_done: int, output_dir: str) -> Non
     )
 
 
+def normalize(x):
+    return (255 * (x - x.min()) / (x.max() - x.min())).type(torch.uint8)
+
+
 # FID Computation Callback
 class FID(pl.Callback):
     """Callback to Compute the Frechet Inception Distance between real and generated images"""
@@ -238,13 +236,9 @@ class FID(pl.Callback):
         ], f"Feature size {feature} inputted is not supported"
 
         # initialize metric
-        self.fid = FrechetInceptionDistance(
-            feature=self.feature, reset_real_features=True
-        )
+        self.fid = FrechetInceptionDistance(feature=self.feature, reset_real_features=True)
 
-    def on_fit_start(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
+    def on_fit_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         """Check if pl_module is of type ACGAN or WACGAN_GP"""
         class_name = type(pl_module).__name__
         assert class_name in [
@@ -270,17 +264,14 @@ class FID(pl.Callback):
         real_imgs = batch[0].detach().cpu()
 
         # # both images need to be converted to uint8 and values between 0 and 255
-        f = lambda x: (255 * (x - x.min()) / (x.max() - x.min())).type(torch.uint8)
-        gen_imgs = f(gen_imgs)
-        real_imgs = f(real_imgs)
+        gen_imgs = normalize(gen_imgs)
+        real_imgs = normalize(real_imgs)
 
         # generate two slightly overlapping image intensity distributions
         self.fid.update(real_imgs, real=True)
         self.fid.update(gen_imgs, real=False)
 
-    def on_train_epoch_end(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
+    def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         pl_module.log("epoch-fid", self.fid.compute())
 
 
@@ -316,9 +307,7 @@ class SaveGeneratedImages(pl.Callback):
         self.gen_images_dirs = []
         self.gen_test_images_dirs = []
 
-    def on_train_epoch_end(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
+    def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         current_epoch = pl_module.current_epoch
         condition = (
             (current_epoch % self.every_k_epochs == 0)
@@ -327,9 +316,7 @@ class SaveGeneratedImages(pl.Callback):
         )
         if condition:
             # generate images for training
-            gen_images_dir = os.path.join(
-                self.output_dir, f"gen_images_{current_epoch}/"
-            )
+            gen_images_dir = os.path.join(self.output_dir, f"gen_images_{current_epoch}/")
             os.makedirs(gen_images_dir, exist_ok=True)
             generate_and_save_images(
                 gan=pl_module,
@@ -340,9 +327,7 @@ class SaveGeneratedImages(pl.Callback):
             self.gen_images_dirs.append(gen_images_dir)
 
             # generate images for testing
-            gen_test_images_dir = os.path.join(
-                self.output_dir, f"gen_test_images_{current_epoch}/"
-            )
+            gen_test_images_dir = os.path.join(self.output_dir, f"gen_test_images_{current_epoch}/")
             os.makedirs(gen_test_images_dir, exist_ok=True)
             generate_and_save_images(
                 gan=pl_module,

@@ -1,4 +1,6 @@
-"""Dataset class for CelebA"""
+"""
+TODO: Setup for this project
+Dataset class for CelebA"""
 import os
 
 import pandas as pd
@@ -59,9 +61,7 @@ class CelebADataset(Dataset):
         return len(self.files)
 
     def __getitem__(self, index):
-        img = self.transforms(
-            Image.open(os.path.join(self.img_dir, self.files.iloc[index, 0]))
-        )
+        img = self.transforms(Image.open(os.path.join(self.img_dir, self.files.iloc[index, 0])))
         # if we want mia_labels (all torch.Tensor([1.0]))
         if self.mia_labels:
             return (img, 1.0)

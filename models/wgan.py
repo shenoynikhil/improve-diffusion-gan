@@ -83,15 +83,11 @@ class Discriminator(torch.nn.Module):
             # nn.InstanceNorm2d(256, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
             # State (256x16x16)
-            nn.Conv2d(
-                in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1
-            ),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1),
             # nn.InstanceNorm2d(512, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
             # State (512x8x8)
-            nn.Conv2d(
-                in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1
-            ),
+            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1),
             # nn.InstanceNorm2d(1024, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
             nn.AdaptiveAvgPool2d((1, 1)),
@@ -229,14 +225,10 @@ class WGAN_GP(ACGAN):
     def compute_gradient_penalty(self, real_samples, fake_samples):
         """Calculates the gradient penalty loss for WGAN GP"""
         # Random weight term for interpolation between real and fake samples
-        alpha = torch.rand((real_samples.size(0), self.opt.channels, 1, 1)).to(
-            self.device
-        )
+        alpha = torch.rand((real_samples.size(0), self.opt.channels, 1, 1)).to(self.device)
 
         # Get random interpolation between real and fake samples
-        interpolates = (
-            alpha * real_samples + ((1 - alpha) * fake_samples)
-        ).requires_grad_(True)
+        interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
         interpolates = interpolates.to(self.device)
 
         # calculate probability of interpolated examples

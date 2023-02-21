@@ -7,13 +7,10 @@ python run.py --path=experiments/default.py
 """
 # Authors: Mishaal Kazmi, Nikhil Shenoy
 
-import sys
-
-sys.path.append(".")
-
 import argparse
 import logging
 import os
+import sys
 from datetime import datetime
 from os.path import join
 from pathlib import Path
@@ -23,14 +20,14 @@ import torchvision.transforms as transforms
 import yaml
 from attrdict import AttrDict
 
-from datamodule import BaseDataModule
-from models import ACGAN, FID, WGAN_GP, SaveGeneratedImages
-from utils import check_config, get_trainer
+sys.path.append(".")
+
+from datamodule import BaseDataModule  # noqa: E402
+from models import ACGAN, FID, WGAN_GP, SaveGeneratedImages  # noqa: E402
+from utils import check_config, get_trainer  # noqa: E402
 
 # Set so as to pick checkpoints from the right place
-os.environ[
-    "TORCH_HOME"
-] = "/scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/data/checkpoints"
+os.environ["TORCH_HOME"] = "/scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/data/checkpoints"
 
 
 def main(opt: dict):

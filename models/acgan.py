@@ -79,8 +79,7 @@ class ACGAN(LightningModule):
             # Loss measures generator's ability to fool the discriminator
             validity, pred_label = self.discriminator(gen_imgs)
             g_loss = (
-                self.adversarial_loss(validity, valid)
-                + self.auxiliary_loss(pred_label, gen_labels)
+                self.adversarial_loss(validity, valid) + self.auxiliary_loss(pred_label, gen_labels)
             ) / 2
 
             # update storage and logs with generator loss
@@ -97,16 +96,14 @@ class ACGAN(LightningModule):
             # Loss for real images
             real_pred, real_aux = self.discriminator(imgs)
             d_real_loss = (
-                self.adversarial_loss(real_pred, valid)
-                + self.auxiliary_loss(real_aux, labels)
+                self.adversarial_loss(real_pred, valid) + self.auxiliary_loss(real_aux, labels)
             ) / 2
             # update storage with discriminator scores on real images
             self.storage["real_scores"].append(torch.mean(real_pred.data.cpu()))
 
             fake_pred, fake_aux = self.discriminator(gen_imgs)
             d_fake_loss = (
-                self.adversarial_loss(fake_pred, fake)
-                + self.auxiliary_loss(fake_aux, gen_labels)
+                self.adversarial_loss(fake_pred, fake) + self.auxiliary_loss(fake_aux, gen_labels)
             ) / 2
             # update storage with fake scores
             self.storage["fake_scores"].append(torch.mean(fake_pred.data.cpu()))
