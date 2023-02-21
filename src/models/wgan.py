@@ -1,6 +1,5 @@
 """LightningModule to setup WACGAN setup.
 """
-import os
 
 import pytorch_lightning as pl
 import torch
@@ -141,8 +140,7 @@ class WGAN_GP(ACGAN):
         self.channels = self.generator.channels
 
         # check output dir for saving generated images
-        self.output_dir = os.path.join(output_dir, "gen_images")
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.output_dir = output_dir
 
         self.lr = lr
 
