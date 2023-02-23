@@ -265,9 +265,7 @@ def compute_metrics_no_aux(
 ):
     """Compute Basic Metrics"""
     if apply_sigmoid:
-        import ipdb
 
-        ipdb.set_trace()
         real_pred = torch.sigmoid(real_pred)
         fake_pred = torch.sigmoid(fake_pred)
 
