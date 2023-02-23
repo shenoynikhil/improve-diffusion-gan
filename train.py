@@ -23,7 +23,7 @@ from omegaconf import OmegaConf
 from src.commons import check_config  # noqa: E402
 
 # Set so as to pick checkpoints from the right place
-os.environ["TORCH_HOME"] = "/scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/data/checkpoints"
+os.environ["TORCH_HOME"] = "./data/checkpoints"
 
 
 def main(config: dict):
