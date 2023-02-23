@@ -1,4 +1,4 @@
-output_dir: /scratch/st-jiaruid-1/shenoy/projects/cpsc533r-project/output/cifar10/wgan
+output_dir: ./output/cifar10/wgan
 
 datamodule:
   _target_: src.datamodule.BaseDataModule
@@ -19,7 +19,7 @@ trainer:
   accelerator: auto
   devices: 1
   default_root_dir: ${output_dir}
-  max_epochs: 10
+  max_epochs: 15
   logger: false
 
 model:
