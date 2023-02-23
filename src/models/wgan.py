@@ -272,17 +272,3 @@ class WGAN_GP(ACGAN):
             return self(
                 torch.randn((batch_size, self.latent_dim, 1, 1)).to(self.device),
             )
-    
-    def on_train_epoch_end(self):
-        """At the end of training epoch, generate synthetic images"""
-        # Get labels ranging from 0 to n_classes for n rows, do this every 10 epochs
-        path = os.path.join(self.output_dir, "gen_images")
-        os.makedirs(path, exist_ok=True)
-        if self.current_epoch % 10 == 0:
-            gen_imgs = self.generate_images(batch_size=100)
-            sample_image(
-                gen_imgs=gen_imgs,
-                n_row=10,
-                epochs_done=self.current_epoch,
-                output_dir=path,
-            )
