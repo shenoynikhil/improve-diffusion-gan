@@ -173,5 +173,5 @@ class ACGAN(LightningModule):
         with torch.no_grad():
             return self(
                 torch.normal(0, 1, (batch_size, self.latent_dim)).to(self.device),
-                torch.randint(0, n_cls, (batch_size)).to(self.device),
+                torch.randint(0, n_cls, (batch_size,)).to(self.device),
             )
