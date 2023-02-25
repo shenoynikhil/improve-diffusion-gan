@@ -93,7 +93,11 @@ class Discriminator(nn.Module):
         )
 
         # The height and width of downsampled image
-        ds_size = img_size // 2**4
+        if img_size == 28:
+            ds_size = 2
+        else:
+            # useful for imgs with size mod 2 == 0
+            ds_size = img_size // 2**4
 
         # Output layers
         self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size**2, 1), nn.Sigmoid())

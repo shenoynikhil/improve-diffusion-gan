@@ -28,10 +28,10 @@ model:
   output_dir: ${output_dir}
   generator:
     _target_: src.models.Generator
-    channels: 3
+    channels: 1
     img_size: 28
     latent_dim: 100
   discriminator:
     _target_: src.models.Discriminator
-    channels: 3
+    channels: 1
     img_size: 28
