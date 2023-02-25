@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 from .acgan import ACGAN
-from .gan_utils import compute_metrics_no_aux
+from .utils import compute_metrics_no_aux
 
 
 class Generator(nn.Module):
