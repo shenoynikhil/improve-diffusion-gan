@@ -54,8 +54,8 @@ class VanillaGAN(LightningModule):
         )
         return [optimizer_g, optimizer_d], []
 
-    def forward(self, z, labels):
-        return self.generator(z, labels)
+    def forward(self, z):
+        return self.generator(z)
 
     def adversarial_loss(self, y_hat, y):
         """Binary Cross Entropy loss between y_hat and y"""
