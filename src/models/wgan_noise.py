@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from .acgan import ACGAN
 from .wgan import WGAN_GP
-from .gan_utils import compute_metrics_no_aux
+from .utils import compute_metrics_no_aux
 from .noiseAdder import GNadder
 import os
 
@@ -27,11 +27,10 @@ class WGAN_NOISE(WGAN_GP):
         super().__init__(generator, discriminator, critic_iter, lambda_term, lr, output_dir)
         
         if noise_adder is None:
-            self.noise_adder = GNadder(gan=self)
+            self.noise_adder = GNadder()
         else:
             self.noise_adder = noise_adder
         
-        noise_adder.set_gan(self)
 
         
     def training_step(self, batch, batch_idx, optimizer_idx):
@@ -79,7 +78,7 @@ class WGAN_NOISE(WGAN_GP):
             # 3. loss = (gen_pred_loss - realpred_loss) / 2
 
             # For real imgs
-            imgs = self.noise_adder.apply_noise(imgs)
+            imgs = self.noise_adder.apply_noise(imgs, self)
             real_pred = self.discriminator(imgs)
             real_pred_loss = torch.mean(real_pred)
             real_loss = -real_pred_loss / 2
