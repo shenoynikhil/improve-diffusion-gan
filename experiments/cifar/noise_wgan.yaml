@@ -24,10 +24,10 @@ trainer:
     _target_: pytorch_lightning.loggers.TensorBoardLogger
     save_dir: ${output_dir}
   callbacks:
-    - _target_: src.models.gan_utils.IS
+    - _target_: src.callbacks.is.IS
 
 model:
-  _target_: src.models.WGAN_GP
+  _target_: src.models.WGAN_NOISE
   critic_iter: 5
   lambda_term: 10
   lr: 0.0001
@@ -39,3 +39,5 @@ model:
   discriminator:
     _target_: src.models.wgan.Discriminator
     channels: 3
+  noise_adder:
+    _target_: src.models.noiseAdder.GNadder
