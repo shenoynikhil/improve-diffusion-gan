@@ -234,12 +234,12 @@ class ACGAN(LightningModule):
 
             return step_output
 
-    def on_train_epoch_end(self):
+    def on_train_epoch_end(self, n_epoch_render=10):
         """At the end of training epoch, generate synthetic images"""
         # Get labels ranging from 0 to n_classes for n rows, do this every 10 epochs
         path = os.path.join(self.output_dir, "gen_images")
         os.makedirs(path, exist_ok=True)
-        if self.current_epoch % 10 == 0:
+        if self.current_epoch % n_epoch_render == 0:
             gen_imgs = self.generate_images(batch_size=100)
             sample_image(
                 gen_imgs=gen_imgs,

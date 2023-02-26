@@ -33,7 +33,7 @@ class GNadder(BaseAdder):
     Gan noise adder
     add noise by: label_img = noise_w*GAN_out + (1-noise_w)*true_img
     """
-    def __init__(self, noise_w=0.2, cache_size=1000, gan=None):
+    def __init__(self, noise_w=0.4, cache_size=1000, gan=None):
         super().__init__()
         self.gan = None
         self.noise_cache = None      # gan noise cache
@@ -70,10 +70,10 @@ class GNadder(BaseAdder):
     
 
     @torch.no_grad()
-    def log_noise(self, pl_module):
+    def log_noise(self, pl_module, n_epoch_render=10):
         save_path = osp.join(pl_module.output_dir, "noise_img")
         os.makedirs(save_path, exist_ok=True)
-        if pl_module.current_epoch%5 == 0:
+        if pl_module.current_epoch%n_epoch_render == 0:
             noise = self.generated_noise[:100]
             sample_image(
                 gen_imgs=noise,

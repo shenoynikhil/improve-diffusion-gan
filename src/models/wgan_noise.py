@@ -112,7 +112,10 @@ class WGAN_NOISE(WGAN_GP):
 
             self.log_dict(metrics, prog_bar=True)
             return step_output
-
-    def on_train_epoch_end(self):
-        super().on_train_epoch_end()
-        self.noise_adder.log_noise(self)
+    
+    def on_train_epoch_end(self, n_epoch_render=1):
+        super().on_train_epoch_end(n_epoch_render)
+        self.noise_adder.log_noise(self, n_epoch_render)
+    # def on_train_epoch_end(self, ):
+    #     super().on_train_epoch_end()
+    #     self.noise_adder.log_noise(self)
