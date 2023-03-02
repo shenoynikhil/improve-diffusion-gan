@@ -1,15 +1,13 @@
 """LightningModule to setup WACGAN setup.
 """
 
-import pytorch_lightning as pl
-import torch
-import torch.nn as nn
 
-from .acgan import ACGAN
-from .wgan import WGAN_GP
-from .utils import compute_metrics_no_aux
+import torch
+
 from .noiseAdder import GNadder
-import os
+from .utils import compute_metrics_no_aux
+from .wgan import WGAN_GP
+
 
 class WGAN_NOISE(WGAN_GP):
     """WGAN_GP Network"""
@@ -25,14 +23,12 @@ class WGAN_NOISE(WGAN_GP):
         output_dir: str = None,
     ):
         super().__init__(generator, discriminator, critic_iter, lambda_term, lr, output_dir)
-        
+
         if noise_adder is None:
             self.noise_adder = GNadder()
         else:
             self.noise_adder = noise_adder
-        
 
-        
     def training_step(self, batch, batch_idx, optimizer_idx):
         """Describes the Training Step / Forward Pass of a WACGAN with Gradient Clipping"""
         imgs, _ = batch
@@ -112,10 +108,11 @@ class WGAN_NOISE(WGAN_GP):
 
             self.log_dict(metrics, prog_bar=True)
             return step_output
-    
+
     def on_train_epoch_end(self, n_epoch_render=1):
         super().on_train_epoch_end(n_epoch_render)
         self.noise_adder.log_noise(self, n_epoch_render)
+
     # def on_train_epoch_end(self, ):
     #     super().on_train_epoch_end()
     #     self.noise_adder.log_noise(self)

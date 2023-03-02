@@ -8,6 +8,7 @@ import torch.nn as nn
 from .acgan import ACGAN
 from .utils import compute_metrics_no_aux
 
+
 class Generator(nn.Module):
     """Generator Framework for WGAN-GP"""
 

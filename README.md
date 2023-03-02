@@ -8,7 +8,7 @@ conda create -n gan-stable python=3.6
 conda activate gan-stable
 
 # install pytorch
-conda install pytorch torchvision torchaudio pytorch-cuda=11.6 -c pytorch -c nvidia
+conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch-nightly -c nvidia
 
 # install other dependencies
 pip install -r requirements.txt

@@ -20,7 +20,7 @@ trainer:
   devices: 1
   default_root_dir: ${output_dir}
   max_epochs: 15
-  logger: 
+  logger:
     _target_: pytorch_lightning.loggers.TensorBoardLogger
     save_dir: ${output_dir}
   callbacks:
