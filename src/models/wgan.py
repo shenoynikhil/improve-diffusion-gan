@@ -1,6 +1,8 @@
 """LightningModule to setup WACGAN setup.
 """
 
+from typing import List
+
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -63,11 +65,37 @@ class Generator(nn.Module):
 class Discriminator(torch.nn.Module):
     """Discriminator for WACGAN-GP"""
 
-    def __init__(self, channels: int):
+    def __init__(self, channels: int, conv_channel_list: List[int] = [128, 256, 512]):
+        """Initialize the Discriminator
+
+        Parameters
+        ----------
+        channels : int
+            Number of channels in the input image
+        conv_channel_list : List[int], optional, default=[128, 256, 512]
+            List of input_channel, output_channel for each convolutional layer.
+            if len(conv_channel_list) = 3, then the discriminator will have
+            3 convolutional layers.
+            Ensure len(conv_channel_list) < 5 (kernel size = 4
+            can only have 4 conv layers)
+        """
         super().__init__()
-        # Filters [256, 512, 1024]
-        # Input_dim = channels (Cx64x64)
-        # Output_dim = 1
+        assert len(conv_channel_list) < 5, "With kernel size = 4, max 4 conv layers"
+        channel_list = [channels] + conv_channel_list
+        conv_list = []
+        for i in range(len(channel_list) - 1):
+            conv_list.extend(
+                [
+                    nn.Conv2d(
+                        in_channels=channel_list[i],
+                        out_channels=channel_list[i + 1],
+                        kernel_size=4,
+                        stride=2,
+                        padding=1,
+                    ),
+                    nn.LeakyReLU(0.2, inplace=True),
+                ]
+            )
         self.main_module = nn.Sequential(
             # Omitting batch normalization in critic because our new penalized training
             # objective (WGAN with gradient penalty) is no longer valid
@@ -75,27 +103,11 @@ class Discriminator(torch.nn.Module):
             # respect to each input independently and not the enitre batch.
             # There is not good & fast implementation of layer normalization -->
             # using per instance normalization nn.InstanceNorm2d() Image (Cx32x32)
-            nn.Conv2d(
-                in_channels=channels,
-                out_channels=128,
-                kernel_size=4,
-                stride=2,
-                padding=1,
-            ),
-            # nn.InstanceNorm2d(256, affine=True),
-            nn.LeakyReLU(0.2, inplace=True),
-            # State (256x16x16)
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1),
-            # nn.InstanceNorm2d(512, affine=True),
-            nn.LeakyReLU(0.2, inplace=True),
-            # State (512x8x8)
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1),
-            # nn.InstanceNorm2d(1024, affine=True),
-            nn.LeakyReLU(0.2, inplace=True),
+            *conv_list,
             nn.AdaptiveAvgPool2d((1, 1)),
         )
         # output of main module --> State (1024x4x4)
-        self.fc = nn.Sequential(nn.Linear(512, 128), nn.LeakyReLU(0.2, inplace=True))
+        self.fc = nn.Sequential(nn.Linear(channel_list[-1], 128), nn.LeakyReLU(0.2, inplace=True))
 
         self.output = nn.Linear(128, 1)
 
