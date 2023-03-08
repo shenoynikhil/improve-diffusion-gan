@@ -118,6 +118,8 @@ class VanillaGAN(LightningModule):
 
         self.lr = lr
 
+        self.storage = defaultdict(list)
+
     def configure_optimizers(self):
         """Configure optimizers for generator and discriminator"""
         # instantiate ADAM optimizer
@@ -138,10 +140,6 @@ class VanillaGAN(LightningModule):
     def adversarial_loss(self, y_hat, y):
         """Binary Cross Entropy loss between y_hat and y"""
         return F.binary_cross_entropy(y_hat, y)
-
-    def on_train_start(self):
-        """Created storage to store some metrics throughout training"""
-        self.storage = defaultdict(list)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, _ = batch

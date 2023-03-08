@@ -5,8 +5,6 @@ To run this script, choose a suitable experiment config from `experiments/`
 python train.py experiment=<path to experiment config>
 ```
 """
-import logging
-
 # Authors: Nikhil Shenoy, Matthew Tang
 from typing import Optional
 
@@ -18,27 +16,31 @@ from omegaconf import DictConfig
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
+from src.pylogger import get_pylogger  # noqa: E402
+
+log = get_pylogger(__name__)
+
 
 def train(config: dict):
     # set seed in order to ensure reproducibility
     seed = config.get("seed", 42)
     pl.seed_everything(seed=seed)
-    logging.info(f"Starting Experiment with seed: {seed}")
+    log.info(f"Starting Experiment with seed: {seed}")
 
     # get dataloader
-    logging.info("Creating Datamodule")
+    log.info("Creating Datamodule")
     datamodule = instantiate(config.get("datamodule"))
 
     # load model
-    logging.info("Creating GAN")
+    log.info("Creating GAN")
     gan = instantiate(config.get("model"))
 
     # get trainer for gan training
-    logging.info("Creating Trainer")
+    log.info("Creating Trainer")
     trainer = instantiate(config.get("trainer"), default_root_dir=config.get("output_dir"))
 
     # fit the gan
-    logging.info("Fitting the GAN")
+    log.info("Fitting the GAN")
     trainer.fit(gan, datamodule)
 
 

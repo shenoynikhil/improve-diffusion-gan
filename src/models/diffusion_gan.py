@@ -79,8 +79,8 @@ class DiffusionGAN(VanillaGAN):
 
         # Diffuse into both real and generated images
         t = self.diffusion.sample_t(batch_size)
-        imgs = self.diffusion(imgs, t)
-        gen_imgs = self.diffusion(gen_imgs, t)
+        imgs, _ = self.diffusion(imgs, t)
+        gen_imgs, _ = self.diffusion(gen_imgs, t)
 
         # construct step output
         step_output = {"gen_imgs": gen_imgs}

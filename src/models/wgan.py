@@ -1,6 +1,7 @@
 """LightningModule to setup WACGAN setup.
 """
 
+from collections import defaultdict
 from typing import List
 
 import pytorch_lightning as pl
@@ -155,6 +156,8 @@ class WGAN_GP(ACGAN):
         self.output_dir = output_dir
 
         self.lr = lr
+
+        self.storage = defaultdict(list)
 
     def forward(self, z):
         return self.generator(z)
