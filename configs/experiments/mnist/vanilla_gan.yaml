@@ -3,5 +3,5 @@
 task_name: mnist_vanilla_gan
 
 defaults:
-  - /datamodule: mnist.yaml
-  - /model: vanilla_gan_mnist.yaml
+  - override /datamodule: mnist.yaml
+  - override /model: vanilla_gan_mnist.yaml

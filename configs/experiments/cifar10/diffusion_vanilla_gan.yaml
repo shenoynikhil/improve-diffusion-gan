@@ -3,5 +3,5 @@
 task_name: cifar10_diffusion_vanilla_gan
 
 defaults:
-  - /datamodule: cifar10.yaml
-  - /model: diffusion_vanilla_gan_cifar10.yaml
+  - override /datamodule: cifar10.yaml
+  - override /model: diffusion_vanilla_gan_cifar10.yaml

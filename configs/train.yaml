@@ -1,11 +1,14 @@
 # @package _global_
 
+# task name, determines output directory path
+task_name: task-not-specified
+
 # specify here default configuration
 # order of defaults determines the order in which configs override each other
 defaults:
   - _self_
-  - datamodule: null
-  - model: null
+  - datamodule: cifar10.yaml
+  - model: wgan_cifar10.yaml
   - callbacks: null
   - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: default.yaml
@@ -15,9 +18,6 @@ defaults:
   # experiment configs allow for version control of specific hyperparameters
   # e.g. best hyperparameters for given model and datamodule
   - experiment: null
-
-# task name, determines output directory path
-task_name: "task-not-specified"
 
 # set False to skip model training
 train: True

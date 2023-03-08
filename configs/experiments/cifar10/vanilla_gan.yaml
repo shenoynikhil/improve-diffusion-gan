@@ -3,5 +3,5 @@
 task_name: cifar10_vanilla_gan
 
 defaults:
-  - /datamodule: cifar10.yaml
-  - /model: vanilla_gan_cifar10.yaml
+  - override /datamodule: cifar10.yaml
+  - override /model: vanilla_gan_cifar10.yaml

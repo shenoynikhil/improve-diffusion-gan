@@ -3,5 +3,5 @@
 task_name: mnist_acgan
 
 defaults:
-  - /datamodule: mnist.yaml
-  - /model: acgan_mnist.yaml
+  - override /datamodule: mnist.yaml
+  - override /model: acgan_mnist.yaml

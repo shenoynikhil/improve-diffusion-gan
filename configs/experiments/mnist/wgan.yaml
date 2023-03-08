@@ -3,5 +3,5 @@
 task_name: mnist_wgan
 
 defaults:
-  - /datamodule: mnist.yaml
-  - /model: wgan_mnist.yaml
+  - override /datamodule: mnist.yaml
+  - override /model: wgan_mnist.yaml
