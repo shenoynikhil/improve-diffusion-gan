@@ -6,17 +6,20 @@ python train.py experiment=<path to experiment config>
 ```
 """
 # Authors: Nikhil Shenoy, Matthew Tang
-from typing import Optional
+from typing import List, Optional
 
 import hydra
 import pyrootutils
 import pytorch_lightning as pl
 from hydra.utils import instantiate
 from omegaconf import DictConfig
+from pytorch_lightning import Callback, LightningDataModule, LightningModule, Trainer
+from pytorch_lightning.loggers import Logger
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.pylogger import get_pylogger  # noqa: E402
+from src.utils import instantiate_callbacks, instantiate_loggers  # noqa: E402
 
 log = get_pylogger(__name__)
 
@@ -29,15 +32,22 @@ def train(config: dict):
 
     # get dataloader
     log.info("Creating Datamodule")
-    datamodule = instantiate(config.get("datamodule"))
+    datamodule: LightningDataModule = instantiate(config.get("datamodule"))
+
+    # get callbacks
+    log.info("Creating Callbacks")
+    callbacks: List[Callback] = instantiate_callbacks(config.get("callbacks"))
 
     # load model
     log.info("Creating GAN")
-    gan = instantiate(config.get("model"))
+    gan: LightningModule = instantiate(config.get("model"))
+
+    log.info("Instantiating loggers...")
+    logger: List[Logger] = instantiate_loggers(config.get("logger"))
 
     # get trainer for gan training
     log.info("Creating Trainer")
-    trainer = instantiate(config.get("trainer"), default_root_dir=config.get("output_dir"))
+    trainer: Trainer = instantiate(config.get("trainer"), callbacks=callbacks, logger=logger)
 
     # fit the gan
     log.info("Fitting the GAN")
