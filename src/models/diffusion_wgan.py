@@ -1,33 +1,23 @@
-"""LightningModule for DiffusionGAN
-Build upon Vanilla GAN implementation
+"""LightningModule to setup DiffusionWGAN setup.
 """
-
 import torch
 
 from .diffusion import Diffusion
 from .utils import compute_metrics_no_aux
-from .vanilla_gan import VanillaGAN
+from .wgan import WGAN_GP
 
 
-class DiffusionGAN(VanillaGAN):
-    """VanillaGAN Implementation
-
-    Parameters
-    ----------
-    generator: nn.Module
-        Generator model
-    discriminator: nn.Module
-        Discriminator model
-    lr: float
-        Learning rate for the optimizer
-    """
+class DiffusionWGAN(WGAN_GP):
+    """WGAN_GP Network"""
 
     def __init__(
         self,
         generator,
         discriminator,
-        lr,
-        output_dir: str,
+        critic_iter: int = 5,
+        lambda_term: int = 10,
+        lr: float = 0.002,
+        output_dir: str = None,
         ada_interval: int = 4,
         beta_schedule="linear",
         beta_start=1e-4,
@@ -40,7 +30,7 @@ class DiffusionGAN(VanillaGAN):
         ts_dist="priority",
         top_k_critic: int = 0,
     ):
-        super().__init__(generator, discriminator, lr, output_dir)
+        super().__init__(generator, discriminator, critic_iter, lambda_term, lr, output_dir)
         # intialize diffusion module
         self.diffusion = Diffusion(
             beta_schedule=beta_schedule,
@@ -63,6 +53,7 @@ class DiffusionGAN(VanillaGAN):
         self.top_k_critic = top_k_critic
 
     def training_step(self, batch, batch_idx, optimizer_idx):
+        """Describes the Training Step / Forward Pass of a WACGAN with Gradient Clipping"""
         imgs, _ = batch
         batch_size = imgs.size(0)
 
@@ -75,13 +66,12 @@ class DiffusionGAN(VanillaGAN):
         valid = torch.ones(batch_size, 1).type_as(imgs)
         fake = torch.zeros(batch_size, 1).type_as(imgs)
 
-        # generate noise
-        z = torch.normal(0, 1, (batch_size, self.latent_dim)).type_as(imgs)
-
-        # Generate a batch of images
+        # generate images, will be used in both optimizer (generator and discriminator) updates
+        z = torch.randn((batch_size, self.latent_dim, 1, 1)).type_as(imgs)
+        # get generated images
         gen_imgs = self.generator(z)
 
-        # construct step output
+        # this will be updated with loss and returned
         step_output = {"gen_imgs": gen_imgs.detach().cpu()}
 
         # Diffuse into both real and generated images
@@ -92,45 +82,48 @@ class DiffusionGAN(VanillaGAN):
         # train generator
         if optimizer_idx == 0:
             # Loss measures generator's ability to fool the discriminator
-            validity = self.discriminator(gen_imgs_noised)
+            gen_pred = self.discriminator(gen_imgs_noised)
 
             # perform top_k if > 0
             if self.top_k_critic > 0:
-                valid_top_k, indices = torch.topk(validity, self.top_k_critic, dim=0)
-                g_loss = self.adversarial_loss(valid_top_k, valid[indices.squeeze()])
+                valid_gen_pred, _ = torch.topk(gen_pred, self.top_k_critic, dim=0)
+                g_loss = -torch.mean(valid_gen_pred) / 2
             else:
-                g_loss = self.adversarial_loss(validity, valid)
+                g_loss = -torch.mean(gen_pred) / 2
 
             # update storage and logs with generator loss
-            self.storage["g_loss"].append(g_loss)
             self.log("g_loss", g_loss, prog_bar=True)
 
-            # update step_output
+            # update step_output with loss
             step_output["loss"] = g_loss
-
             return step_output
 
         # train discriminator
         if optimizer_idx == 1:
-            # Loss for real images
+
+            # Loss for real/fake images
+            # 1. discriminator forward pass on imgs/gen_imgs
+            # 2. real/fake_pred_loss by mean across batch dim, shape => (batch_size, 1)
+            # 3. loss = (gen_pred_loss - realpred_loss) / 2
+
+            # For real imgs
             real_pred = self.discriminator(imgs_noised)
-            d_real_loss = self.adversarial_loss(real_pred, valid)
+            real_pred_loss = torch.mean(real_pred)
+            real_loss = -real_pred_loss / 2
 
-            # update storage with discriminator scores on real images
-            self.storage["real_scores"].append(torch.mean(real_pred.data.cpu()))
-
+            # For gen imgs
             fake_pred = self.discriminator(gen_imgs_noised)
-            d_fake_loss = self.adversarial_loss(fake_pred, fake)
+            fake_pred_loss = torch.mean(fake_pred)
+            fake_loss = fake_pred_loss / 2
 
-            # update storage with fake scores
-            self.storage["fake_scores"].append(torch.mean(fake_pred.data.cpu()))
+            # Compute Gradient Penalty
+            gradient_penalty = self.compute_gradient_penalty(imgs_noised.data, gen_imgs_noised.data)
 
-            # Total discriminator loss
-            d_loss = (d_real_loss + d_fake_loss) / 2
+            # total loss
+            d_loss = fake_loss + real_loss + self.lambda_term * gradient_penalty
 
-            # update storage and logs with discriminator loss
-            self.storage["d_loss"].append(d_loss)
-            self.log("d_loss", d_loss, prog_bar=True)
+            # update step_output with loss
+            step_output["loss"] = d_loss
 
             # compute metrics
             metrics = compute_metrics_no_aux(
@@ -138,6 +131,7 @@ class DiffusionGAN(VanillaGAN):
                 fake_pred,
                 valid,
                 fake,
+                apply_sigmoid=True,
             )
 
             # update storage with metrics
@@ -145,8 +139,4 @@ class DiffusionGAN(VanillaGAN):
                 self.storage[metric].append(metric_val)
 
             self.log_dict(metrics, prog_bar=True)
-
-            # update step_output
-            step_output["loss"] = d_loss
-
             return step_output
