@@ -134,10 +134,10 @@ class Diffusion(torch.nn.Module):
         else:
             self.aug = Identity()
 
+        # called at initialization to set t_epl values
         self.update_T()
 
     def set_diffusion_process(self, t, beta_schedule):
-
         betas = get_beta_schedule(
             beta_schedule=beta_schedule,
             beta_start=self.beta_start,
@@ -154,9 +154,10 @@ class Diffusion(torch.nn.Module):
         self.one_minus_alphas_bar_sqrt = torch.sqrt(1 - alphas_cumprod)
 
     def update_T(self):
-        if self.aug_type == "ada":
-            _p = min(self.p, self.ada_maxp) if self.ada_maxp else self.p
-            self.aug.p.copy_(torch.tensor(_p))
+        """Adaptively updating T"""
+        # if self.aug_type == "ada":
+        #     _p = min(self.p, self.ada_maxp) if self.ada_maxp else self.p
+        #     self.aug.p.copy_(torch.tensor(_p))
 
         t_adjust = round(self.p * self.t_add)
         t = np.clip(int(self.t_min + t_adjust), a_min=self.t_min, a_max=self.t_max)
@@ -175,16 +176,18 @@ class Diffusion(torch.nn.Module):
             t_diffusion = np.random.choice(np.arange(1, t + 1), size=diffusion_ind)
         self.t_epl[:diffusion_ind] = t_diffusion
 
-    def forward(self, x_0):
+    def sample_t(self, batch_size):
+        return torch.from_numpy(np.random.choice(self.t_epl, size=batch_size, replace=True))
+
+    def forward(self, x_0, t):
         x_0 = self.aug(x_0)
         assert isinstance(x_0, torch.Tensor) and x_0.ndim == 4
-        batch_size, num_channels, height, width = x_0.shape
         device = x_0.device
 
         alphas_bar_sqrt = self.alphas_bar_sqrt.to(device)
         one_minus_alphas_bar_sqrt = self.one_minus_alphas_bar_sqrt.to(device)
 
-        t = torch.from_numpy(np.random.choice(self.t_epl, size=batch_size, replace=True)).to(device)
+        t = t.to(device)
         x_t = q_sample(
             x_0,
             alphas_bar_sqrt,
