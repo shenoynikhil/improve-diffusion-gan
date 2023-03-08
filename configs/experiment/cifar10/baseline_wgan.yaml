@@ -1,7 +1,7 @@
 # @package _global_
 
-task_name: cifar10_diffusion_vanilla_gan
+task_name: cifar10_wgan
 
 defaults:
   - override /datamodule: cifar10.yaml
-  - override /model: diffusion_vanilla_gan_cifar10.yaml
+  - override /model: wgan_cifar10.yaml
