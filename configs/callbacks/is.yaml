@@ -1,0 +1,2 @@
+inception_score:
+  _target_: src.callbacks.IS
