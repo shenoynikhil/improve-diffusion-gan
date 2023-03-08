@@ -1,0 +1,7 @@
+# @package _global_
+
+task_name: mnist_acgan
+
+defaults:
+  - override /datamodule: mnist.yaml
+  - override /model: acgan_mnist.yaml
