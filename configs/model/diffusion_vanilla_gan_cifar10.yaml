@@ -1,4 +1,4 @@
-_target_: src.models.DiffusionGan
+_target_: src.models.DiffusionGAN
 lr: 0.0001
 output_dir: ${paths.output_dir}
 generator:
@@ -10,13 +10,13 @@ discriminator:
   _target_: src.models.Discriminator
   channels: 3
   img_size: 32
-  ada_interval: 4
-  beta_schedule: linear
-  beta_start: 0.0001
-  beta_end: 0.02
-  t_min: 10
-  t_max: 1000
-  noise_std: 0.05
-  aug: no
-  ada_maxp: null
-  ts_dist: priority
+ada_interval: 4
+beta_schedule: linear
+beta_start: 0.0001
+beta_end: 0.02
+t_min: 10
+t_max: 1000
+noise_std: 0.05
+aug: no
+ada_maxp: null
+ts_dist: priority
