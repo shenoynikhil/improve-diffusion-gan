@@ -2,5 +2,6 @@ attrdict
 hydra-core
 matplotlib
 pandas
+pyrootutils
 pytorch_lightning
 PyYAML
