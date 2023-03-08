@@ -5,3 +5,4 @@ pandas
 pyrootutils
 pytorch_lightning==1.9.4
 PyYAML
+wandb==0.13.11
