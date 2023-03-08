@@ -1,7 +1,0 @@
-# @package _global_
-
-task_name: mnist_vanilla_gan
-
-defaults:
-  - override /datamodule: mnist.yaml
-  - override /model: vanilla_gan_mnist.yaml

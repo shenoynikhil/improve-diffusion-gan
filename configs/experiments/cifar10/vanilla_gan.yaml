@@ -1,7 +1,0 @@
-# @package _global_
-
-task_name: cifar10_vanilla_gan
-
-defaults:
-  - override /datamodule: cifar10.yaml
-  - override /model: vanilla_gan_cifar10.yaml

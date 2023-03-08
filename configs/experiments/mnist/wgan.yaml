@@ -1,7 +1,0 @@
-# @package _global_
-
-task_name: mnist_wgan
-
-defaults:
-  - override /datamodule: mnist.yaml
-  - override /model: wgan_mnist.yaml
