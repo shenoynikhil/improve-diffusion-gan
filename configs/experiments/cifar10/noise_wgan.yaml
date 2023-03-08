@@ -1,0 +1,7 @@
+# @package _global_
+
+task_name: cifar10_noise_wgan
+
+defaults:
+  - /datamodule: cifar10.yaml
+  - /model: noise_wgan_cifar10.yaml
