@@ -1,6 +1,6 @@
 _target_: src.models.VanillaGAN
 lr: 0.0001
-output_dir: ${output_dir}
+output_dir: ${paths.output_dir}
 generator:
   _target_: src.models.Generator
   channels: 3

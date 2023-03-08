@@ -1,6 +1,6 @@
 _target_: src.models.ACGAN
 lr: 0.0001
-output_dir: ${output_dir}
+output_dir: ${paths.output_dir}
 generator:
   _target_: src.models.ConditionalGenerator
   channels: 1
