@@ -2,31 +2,24 @@
 To run this script, choose a suitable experiment config from `experiments/`
 
 ```python
-python src/train.py --path <path to config>
+python train.py experiment=<path to experiment config>
 ```
 """
-# Authors: Nikhil Shenoy, Matthew Tang
-
-import argparse
 import logging
-import os
-from datetime import datetime
-from os.path import join
-from pathlib import Path
 
+# Authors: Nikhil Shenoy, Matthew Tang
+from typing import Optional
+
+import hydra
+import pyrootutils
 import pytorch_lightning as pl
-import yaml
-from attrdict import AttrDict
 from hydra.utils import instantiate
-from omegaconf import OmegaConf
+from omegaconf import DictConfig
 
-from src.commons import check_config  # noqa: E402
-
-# Set so as to pick checkpoints from the right place
-os.environ["TORCH_HOME"] = "./data/checkpoints"
+pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 
-def main(config: dict):
+def train(config: dict):
     # set seed in order to ensure reproducibility
     seed = config.get("seed", 42)
     pl.seed_everything(seed=seed)
@@ -49,33 +42,11 @@ def main(config: dict):
     trainer.fit(gan, datamodule)
 
 
+@hydra.main(version_base="1.3", config_path="configs", config_name="train.yaml")
+def main(cfg: DictConfig) -> Optional[float]:
+    # Perform training and testing
+    train(cfg)
+
+
 if __name__ == "__main__":
-    # parameter settings
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--path",
-        type=str,
-        help="Path to experiment config",
-    )
-    opt = parser.parse_args()
-
-    # read from yaml
-    opt = OmegaConf.create(yaml.safe_load(Path(opt.path).read_text()))
-    # check config
-    check_config(opt)
-
-    # create output directory
-    opt["output_dir"] = join(
-        opt.get("output_dir"),
-        datetime.now().strftime("%d_%m_%Y-%H_%M"),
-    )
-    os.makedirs(opt["output_dir"], exist_ok=False)
-
-    # setup logging directory
-    logging.basicConfig(
-        filename=join(opt.get("output_dir"), opt.get("log_dir", "output.log")),
-        filemode="a",
-        level=logging.INFO,
-    )
-
-    main(AttrDict(opt))
+    main()
