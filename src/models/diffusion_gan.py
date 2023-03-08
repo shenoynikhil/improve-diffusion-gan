@@ -77,18 +77,18 @@ class DiffusionGAN(VanillaGAN):
         # Generate a batch of images
         gen_imgs = self.generator(z)
 
-        # Diffuse into both real and generated images
-        t = self.diffusion.sample_t(batch_size)
-        imgs, _ = self.diffusion(imgs, t)
-        gen_imgs, _ = self.diffusion(gen_imgs, t)
-
         # construct step output
         step_output = {"gen_imgs": gen_imgs}
+
+        # Diffuse into both real and generated images
+        t = self.diffusion.sample_t(batch_size)
+        imgs_noised, _ = self.diffusion(imgs, t)
+        gen_imgs_noised, _ = self.diffusion(gen_imgs, t)
 
         # train generator
         if optimizer_idx == 0:
             # Loss measures generator's ability to fool the discriminator
-            validity = self.discriminator(gen_imgs)
+            validity = self.discriminator(gen_imgs_noised)
             g_loss = self.adversarial_loss(validity, valid)
 
             # update storage and logs with generator loss
@@ -103,13 +103,13 @@ class DiffusionGAN(VanillaGAN):
         # train discriminator
         if optimizer_idx == 1:
             # Loss for real images
-            real_pred = self.discriminator(imgs)
+            real_pred = self.discriminator(imgs_noised)
             d_real_loss = self.adversarial_loss(real_pred, valid)
 
             # update storage with discriminator scores on real images
             self.storage["real_scores"].append(torch.mean(real_pred.data.cpu()))
 
-            fake_pred = self.discriminator(gen_imgs)
+            fake_pred = self.discriminator(gen_imgs_noised)
             d_fake_loss = self.adversarial_loss(fake_pred, fake)
 
             # update storage with fake scores
