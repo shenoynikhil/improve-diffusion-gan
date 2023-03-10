@@ -19,30 +19,14 @@ class DiffusionWGAN(WGAN_GP):
         lr: float = 0.002,
         output_dir: str = None,
         ada_interval: int = 4,
-        beta_schedule="linear",
-        beta_start=1e-4,
-        beta_end=2e-2,
-        t_min=10,
-        t_max=1000,
-        noise_std=0.05,
-        aug="no",
-        ada_maxp=None,
-        ts_dist="priority",
         top_k_critic: int = 0,
+        diffusion_module: Diffusion = None,
     ):
         super().__init__(generator, discriminator, critic_iter, lambda_term, lr, output_dir)
         # intialize diffusion module
-        self.diffusion = Diffusion(
-            beta_schedule=beta_schedule,
-            beta_start=beta_start,
-            beta_end=beta_end,
-            t_min=t_min,
-            t_max=t_max,
-            noise_std=noise_std,
-            aug=aug,
-            ada_maxp=ada_maxp,
-            ts_dist=ts_dist,
-        )
+        assert diffusion_module is not None, "Diffusion module cannot be None"
+        self.diffusion = diffusion_module
+
         # adaptive diffusion rate
         self.ada_interval = ada_interval
 
