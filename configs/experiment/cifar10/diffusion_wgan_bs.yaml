@@ -1,0 +1,10 @@
+# @package _global_
+
+task_name: cifar10_diffusion_wgan_baseline
+
+defaults:
+  - override /datamodule: cifar10.yaml
+  - override /model: wgan_cifar10.yaml
+
+datamodule:
+  batch_size: 32

@@ -4,11 +4,11 @@ As part of Course Project in [CPSC533R: Computer Graphics and Computer Vision](h
 ### Setup
 ```bash
 # Create a new conda environment
-conda create -n gan-stable python=3.6
+conda create -n gan-stable python=3.9
 conda activate gan-stable
 
 # install pytorch
-conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch-nightly -c nvidia
+conda install pytorch torchvision pytorch-cuda=11.8 -c pytorch-nightly -c nvidia
 
 # install other dependencies
 pip install -r requirements.txt
@@ -17,7 +17,7 @@ pip install -r requirements.txt
 ### Running An Experiment
 Select a experiment config from `experiments/` and run it with the following command:
 ```bash
-python train.py --path experiments/<experiment_name>.yaml
+python train.py experiment=<path to experiment config>
 ```
 
 ### Pre-Commit Hooks

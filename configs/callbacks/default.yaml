@@ -1,0 +1,3 @@
+defaults:
+  - is.yaml
+  - _self_
