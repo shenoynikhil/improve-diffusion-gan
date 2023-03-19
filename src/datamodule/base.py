@@ -14,6 +14,7 @@ class BaseDataModule(pl.LightningDataModule):
     def __init__(
         self,
         data_type: str,
+        root_data_dir: str = "data/",
         transforms: list = None,
         batch_size: int = 100,
         num_workers: int = 1,
@@ -35,6 +36,7 @@ class BaseDataModule(pl.LightningDataModule):
         """
         super().__init__()
         self.data_type = data_type
+        self.root_data_dir = root_data_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
 
@@ -60,14 +62,14 @@ class BaseDataModule(pl.LightningDataModule):
         if self.data_type == "mnist":
             if stage == "fit":
                 self.dataset = datasets.MNIST(
-                    root="data/mnist/train",
+                    root=f"{self.root_data_dir}/mnist/train",
                     train=True,
                     download=True,
                     transform=self.transforms,
                 )
             elif stage == "test":
                 self.test_dataset = datasets.MNIST(
-                    root="data/mnist/test",
+                    root=f"{self.root_data_dir}/mnist/test",
                     train=False,
                     download=True,
                     transform=self.transforms,
@@ -75,14 +77,14 @@ class BaseDataModule(pl.LightningDataModule):
         elif self.data_type == "cifar10":
             if stage == "fit":
                 self.dataset = datasets.CIFAR10(
-                    root="data/cifar10/train",
+                    root=f"{self.root_data_dir}/cifar10/train",
                     train=True,
                     download=True,
                     transform=self.transforms,
                 )
             elif stage == "test":
                 self.test_dataset = datasets.CIFAR10(
-                    root="data/cifar10/test",
+                    root=f"{self.root_data_dir}/cifar10/test",
                     train=False,
                     download=True,
                     transform=self.transforms,
