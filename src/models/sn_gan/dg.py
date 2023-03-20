@@ -4,12 +4,12 @@ from .spectral_norm import SpectralNorm
 
 
 class Generator(nn.Module):
-    def __init__(self, z_dim, channels: int = 3):
+    def __init__(self, latent_dim: int = 100, channels: int = 3):
         super(Generator, self).__init__()
-        self.z_dim = z_dim
+        self.latent_dim = latent_dim
 
         self.model = nn.Sequential(
-            nn.ConvTranspose2d(z_dim, 512, 4, stride=1),
+            nn.ConvTranspose2d(latent_dim, 512, 4, stride=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.ConvTranspose2d(512, 256, 4, stride=2, padding=(1, 1)),
@@ -26,7 +26,7 @@ class Generator(nn.Module):
         )
 
     def forward(self, z):
-        return self.model(z.view(-1, self.z_dim, 1, 1))
+        return self.model(z.view(-1, self.latent_dim, 1, 1))
 
 
 class Discriminator(nn.Module):

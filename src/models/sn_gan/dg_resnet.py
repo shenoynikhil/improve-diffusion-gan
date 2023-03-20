@@ -4,8 +4,6 @@ from torch import nn
 
 from .spectral_norm import SpectralNorm
 
-channels = 3
-
 
 class ResBlockGenerator(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
@@ -13,8 +11,8 @@ class ResBlockGenerator(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding=1)
         self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, padding=1)
-        nn.init.xavier_uniform(self.conv1.weight.data, 1.0)
-        nn.init.xavier_uniform(self.conv2.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.conv1.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.conv2.weight.data, 1.0)
 
         self.model = nn.Sequential(
             nn.BatchNorm2d(in_channels),
@@ -39,8 +37,8 @@ class ResBlockDiscriminator(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding=1)
         self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, padding=1)
-        nn.init.xavier_uniform(self.conv1.weight.data, 1.0)
-        nn.init.xavier_uniform(self.conv2.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.conv1.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.conv2.weight.data, 1.0)
 
         if stride == 1:
             self.model = nn.Sequential(
@@ -58,7 +56,7 @@ class ResBlockDiscriminator(nn.Module):
         if stride != 1:
 
             self.bypass_conv = nn.Conv2d(in_channels, out_channels, 1, 1, padding=0)
-            nn.init.xavier_uniform(self.bypass_conv.weight.data, np.sqrt(2))
+            nn.init.xavier_uniform_(self.bypass_conv.weight.data, np.sqrt(2))
 
             self.bypass = nn.Sequential(
                 SpectralNorm(self.bypass_conv), nn.AvgPool2d(2, stride=stride, padding=0)
@@ -83,9 +81,9 @@ class FirstResBlockDiscriminator(nn.Module):
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding=1)
         self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, padding=1)
         self.bypass_conv = nn.Conv2d(in_channels, out_channels, 1, 1, padding=0)
-        nn.init.xavier_uniform(self.conv1.weight.data, 1.0)
-        nn.init.xavier_uniform(self.conv2.weight.data, 1.0)
-        nn.init.xavier_uniform(self.bypass_conv.weight.data, np.sqrt(2))
+        nn.init.xavier_uniform_(self.conv1.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.conv2.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.bypass_conv.weight.data, np.sqrt(2))
 
         # we don't want to apply ReLU activation to raw image before convolution transformation.
         self.model = nn.Sequential(
@@ -101,15 +99,15 @@ class FirstResBlockDiscriminator(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, z_dim, channels: int = 3, gen_size: int = 128):
+    def __init__(self, latent_dim, channels: int = 3, gen_size: int = 128):
         super(Generator, self).__init__()
-        self.z_dim = z_dim
+        self.latent_dim = latent_dim
         self.gen_size = gen_size
 
-        self.dense = nn.Linear(self.z_dim, 4 * 4 * gen_size)
+        self.dense = nn.Linear(self.latent_dim, 4 * 4 * gen_size)
         self.final = nn.Conv2d(gen_size, channels, 3, stride=1, padding=1)
-        nn.init.xavier_uniform(self.dense.weight.data, 1.0)
-        nn.init.xavier_uniform(self.final.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.dense.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.final.weight.data, 1.0)
 
         self.model = nn.Sequential(
             ResBlockGenerator(gen_size, gen_size, stride=2),
@@ -126,7 +124,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, disc_size: int = 128):
+    def __init__(self, channels: int = 3, disc_size: int = 128):
         super(Discriminator, self).__init__()
         self.disc_size = disc_size
 
@@ -139,7 +137,7 @@ class Discriminator(nn.Module):
             nn.AvgPool2d(8),
         )
         self.fc = nn.Linear(disc_size, 1)
-        nn.init.xavier_uniform(self.fc.weight.data, 1.0)
+        nn.init.xavier_uniform_(self.fc.weight.data, 1.0)
         self.fc = SpectralNorm(self.fc)
 
     def forward(self, x):

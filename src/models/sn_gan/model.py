@@ -3,12 +3,16 @@ Implementation from https://github.com/christiancosgrove/pytorch-spectral-normal
 """
 import os
 from collections import defaultdict
+from typing import Union
 
 import torch
 import torch.nn.functional as F
 from pytorch_lightning import LightningModule
 
 from ..utils import compute_metrics_no_aux, sample_image
+from .dg import Discriminator, Generator
+from .dg_resnet import Discriminator as ResnetDiscriminator
+from .dg_resnet import Generator as ResnetGenerator
 
 
 class SpectralNormGAN(LightningModule):
@@ -24,13 +28,32 @@ class SpectralNormGAN(LightningModule):
         Learning rate for the optimizer
     """
 
-    def __init__(self, generator, discriminator, lr, output_dir: str):
+    def __init__(
+        self,
+        generator: Union[Generator, ResnetGenerator],
+        discriminator: Union[Discriminator, ResnetDiscriminator],
+        lr: float,
+        output_dir: str,
+        loss_type: str = "wasserstein",
+        disc_iters: int = 5,
+        top_k_critic: int = 0,
+    ):
         super().__init__()
-        self.generator = generator
-        self.discriminator = discriminator
+        assert isinstance(
+            generator, (Generator, ResnetGenerator)
+        ), "Generator must be an instance of Generator"
+        assert isinstance(
+            discriminator, (Discriminator, ResnetDiscriminator)
+        ), "Discriminator must be an instance of Discriminator"
+
+        self.generator: Union[Generator, ResnetGenerator] = generator
+        self.discriminator: Union[Discriminator, ResnetDiscriminator] = discriminator
 
         assert hasattr(generator, "latent_dim"), "Generator must have latent_dim attribute"
         self.latent_dim = generator.latent_dim
+        self.loss_type = loss_type
+        self.disc_iters = disc_iters
+        self.top_k_critic = top_k_critic
 
         # check output dir for saving generated images
         self.output_dir = output_dir
@@ -51,14 +74,33 @@ class SpectralNormGAN(LightningModule):
             self.discriminator.parameters(),
             lr=self.lr,
         )
-        return [optimizer_g, optimizer_d], []
+        return {"optimizer": optimizer_g, "frequency": 1}, {
+            "optimizer": optimizer_d,
+            "frequency": self.disc_iters,
+        }
 
     def forward(self, z):
         return self.generator(z)
 
     def adversarial_loss(self, y_hat, y):
         """Binary Cross Entropy loss between y_hat and y"""
-        return F.binary_cross_entropy(y_hat, y)
+        if self.loss_type == "wasserstein":
+            if self.top_k_critic > 0:
+                y_hat, _ = torch.topk(y_hat, self.top_k_critic, dim=0)
+            return -torch.mean(y_hat)
+        else:
+            if self.top_k_critic > 0:
+                y_hat, _ = torch.topk(y_hat, self.top_k_critic, dim=0)
+                y = torch.ones_like(y_hat).to(y_hat.device)
+            return F.binary_cross_entropy_with_logits(y_hat, y)
+
+    def discriminator_loss(self, real_pred, fake_pred, real_labels, fake_labels):
+        if self.loss_type == "wasserstein":
+            return -torch.mean(real_pred) + torch.mean(fake_pred)
+        else:
+            real_loss = F.binary_cross_entropy_with_logits(real_pred, real_labels)
+            fake_loss = F.binary_cross_entropy_with_logits(fake_pred, fake_labels)
+            return real_loss + fake_loss
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, _ = batch
@@ -96,19 +138,10 @@ class SpectralNormGAN(LightningModule):
         if optimizer_idx == 1:
             # Loss for real images
             real_pred = self.discriminator(imgs)
-            d_real_loss = self.adversarial_loss(real_pred, valid)
-
-            # update storage with discriminator scores on real images
-            self.storage["real_scores"].append(torch.mean(real_pred.data.cpu()))
-
             fake_pred = self.discriminator(gen_imgs)
-            d_fake_loss = self.adversarial_loss(fake_pred, fake)
 
-            # update storage with fake scores
-            self.storage["fake_scores"].append(torch.mean(fake_pred.data.cpu()))
-
-            # Total discriminator loss
-            d_loss = (d_real_loss + d_fake_loss) / 2
+            # compute discriminator loss
+            d_loss = self.discriminator_loss(real_pred, fake_pred, valid, fake)
 
             # update storage and logs with discriminator loss
             self.storage["d_loss"].append(d_loss)
