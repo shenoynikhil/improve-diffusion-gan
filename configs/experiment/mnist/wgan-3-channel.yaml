@@ -1,0 +1,14 @@
+# @package _global_
+
+task_name: mnist_wgan_3_channel
+
+defaults:
+  - override /datamodule: mnist-3-channel.yaml
+  - override /model: wgan_mnist.yaml
+
+model:
+  generator:
+    channels: 3
+    final_size: 28
+  discriminator:
+    channels: 3

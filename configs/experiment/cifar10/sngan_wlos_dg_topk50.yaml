@@ -1,0 +1,10 @@
+# @package _global_
+
+task_name: cifar10_sngan_wlos_dg_topk50
+
+defaults:
+  - override /datamodule: cifar10.yaml
+  - override /model: sngan_cifar10_wloss.yaml
+
+model:
+  top_k_critic: 50
