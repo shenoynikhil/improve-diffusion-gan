@@ -3,7 +3,6 @@ Implementation from https://github.com/christiancosgrove/pytorch-spectral-normal
 """
 import os
 from collections import defaultdict
-from typing import Union
 
 import torch
 import torch.nn.functional as F
@@ -11,8 +10,6 @@ from pytorch_lightning import LightningModule
 
 from ..utils import compute_metrics_no_aux, sample_image
 from .dg import Discriminator, Generator
-from .dg_resnet import Discriminator as ResnetDiscriminator
-from .dg_resnet import Generator as ResnetGenerator
 
 
 class SpectralNormGAN(LightningModule):
@@ -30,8 +27,8 @@ class SpectralNormGAN(LightningModule):
 
     def __init__(
         self,
-        generator: Union[Generator, ResnetGenerator],
-        discriminator: Union[Discriminator, ResnetDiscriminator],
+        generator: Generator,
+        discriminator: Discriminator,
         lr: float,
         output_dir: str,
         loss_type: str = "wasserstein",
@@ -39,15 +36,8 @@ class SpectralNormGAN(LightningModule):
         top_k_critic: int = 0,
     ):
         super().__init__()
-        assert isinstance(
-            generator, (Generator, ResnetGenerator)
-        ), "Generator must be an instance of Generator"
-        assert isinstance(
-            discriminator, (Discriminator, ResnetDiscriminator)
-        ), "Discriminator must be an instance of Discriminator"
-
-        self.generator: Union[Generator, ResnetGenerator] = generator
-        self.discriminator: Union[Discriminator, ResnetDiscriminator] = discriminator
+        self.generator: Generator = generator
+        self.discriminator: Discriminator = discriminator
 
         assert hasattr(generator, "latent_dim"), "Generator must have latent_dim attribute"
         self.latent_dim = generator.latent_dim
@@ -82,7 +72,7 @@ class SpectralNormGAN(LightningModule):
     def forward(self, z):
         return self.generator(z)
 
-    def adversarial_loss(self, y_hat, y):
+    def generator_loss(self, y_hat, y):
         """Binary Cross Entropy loss between y_hat and y"""
         if self.loss_type == "wasserstein":
             if self.top_k_critic > 0:
@@ -102,7 +92,7 @@ class SpectralNormGAN(LightningModule):
             fake_loss = F.binary_cross_entropy_with_logits(fake_pred, fake_labels)
             return real_loss + fake_loss
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, _, optimizer_idx):
         imgs, _ = batch
         batch_size = imgs.size(0)
 
@@ -123,7 +113,7 @@ class SpectralNormGAN(LightningModule):
         if optimizer_idx == 0:
             # Loss measures generator's ability to fool the discriminator
             validity = self.discriminator(gen_imgs)
-            g_loss = self.adversarial_loss(validity, valid)
+            g_loss = self.generator_loss(validity, valid)
 
             # update storage and logs with generator loss
             self.storage["g_loss"].append(g_loss)
