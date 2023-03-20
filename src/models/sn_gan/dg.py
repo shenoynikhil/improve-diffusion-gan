@@ -1,59 +1,72 @@
-from torch import nn
+import torch.nn as nn
 
-from .spectral_norm import SpectralNorm
+from .snconv2d import SNConv2d
 
 
 class Generator(nn.Module):
-    def __init__(self, latent_dim: int = 100, channels: int = 3):
+    def __init__(self, nz, nc, ngf):
         super(Generator, self).__init__()
-        self.latent_dim = latent_dim
-
-        self.model = nn.Sequential(
-            nn.ConvTranspose2d(latent_dim, 512, 4, stride=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.ConvTranspose2d(512, 256, 4, stride=2, padding=(1, 1)),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.ConvTranspose2d(256, 128, 4, stride=2, padding=(1, 1)),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.ConvTranspose2d(128, 64, 4, stride=2, padding=(1, 1)),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, channels, 3, stride=1, padding=(1, 1)),
-            nn.Tanh(),
+        self.main = nn.Sequential(
+            # input is Z, going into a convolution
+            nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=True),
+            nn.BatchNorm2d(ngf * 8),
+            nn.ReLU(True),
+            # state size. (ngf*8) x 4 x 4
+            nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=True),
+            nn.BatchNorm2d(ngf * 4),
+            nn.ReLU(True),
+            # state size. (ngf*4) x 8 x 8
+            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=True),
+            nn.BatchNorm2d(ngf * 2),
+            nn.ReLU(True),
+            # state size. (ngf*2) x 16 x 16
+            nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=True),
+            nn.BatchNorm2d(ngf),
+            nn.ReLU(True),
+            # state size. (ngf) x 32 x 32
+            nn.ConvTranspose2d(ngf, nc, 3, 1, 1, bias=True),
+            nn.Tanh()
+            # state size. (nc) x 32 x 32
         )
 
-    def forward(self, z):
-        return self.model(z.view(-1, self.latent_dim, 1, 1))
+    def forward(self, input):
+        output = self.main(input)
+        return output
 
 
 class Discriminator(nn.Module):
-    def __init__(self, channels: int = 3, leak: float = 0.1, w_g: int = 4):
+    def __init__(self, nc, ndf):
         super(Discriminator, self).__init__()
-        self.leak = leak
-        self.w_g = w_g
 
-        self.conv1 = SpectralNorm(nn.Conv2d(channels, 64, 3, stride=1, padding=(1, 1)))
+        self.main = nn.Sequential(
+            # input is (nc) x 32 x 32
+            # SNConv2d()
+            SNConv2d(nc, ndf, 3, 1, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+            SNConv2d(ndf, ndf, 4, 2, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+            # state size. (ndf) x 1 x 32
+            SNConv2d(ndf, ndf * 2, 3, 1, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+            SNConv2d(ndf * 2, ndf * 2, 4, 2, 1, bias=True),
+            # nn.BatchNorm2d(ndf * 2),
+            nn.LeakyReLU(0.1, inplace=True),
+            # state size. (ndf*2) x 16 x 16
+            SNConv2d(ndf * 2, ndf * 4, 3, 1, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+            SNConv2d(ndf * 4, ndf * 4, 4, 2, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+            # state size. (ndf*8) x 4 x 4
+            SNConv2d(ndf * 4, ndf * 8, 3, 1, 1, bias=True),
+            nn.LeakyReLU(0.1, inplace=True),
+            SNConv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+            nn.Sigmoid(),
+        )
+        # self.snlinear = nn.Sequential(SNLinear(ndf * 4 * 4 * 4, 1),
+        #                              nn.Sigmoid())
 
-        self.conv2 = SpectralNorm(nn.Conv2d(64, 64, 4, stride=2, padding=(1, 1)))
-        self.conv3 = SpectralNorm(nn.Conv2d(64, 128, 3, stride=1, padding=(1, 1)))
-        self.conv4 = SpectralNorm(nn.Conv2d(128, 128, 4, stride=2, padding=(1, 1)))
-        self.conv5 = SpectralNorm(nn.Conv2d(128, 256, 3, stride=1, padding=(1, 1)))
-        self.conv6 = SpectralNorm(nn.Conv2d(256, 256, 4, stride=2, padding=(1, 1)))
-        self.conv7 = SpectralNorm(nn.Conv2d(256, 512, 3, stride=1, padding=(1, 1)))
-
-        self.fc = SpectralNorm(nn.Linear(self.w_g * self.w_g * 512, 1))
-
-    def forward(self, x):
-        m = x
-        m = nn.LeakyReLU(self.leak)(self.conv1(m))
-        m = nn.LeakyReLU(self.leak)(self.conv2(m))
-        m = nn.LeakyReLU(self.leak)(self.conv3(m))
-        m = nn.LeakyReLU(self.leak)(self.conv4(m))
-        m = nn.LeakyReLU(self.leak)(self.conv5(m))
-        m = nn.LeakyReLU(self.leak)(self.conv6(m))
-        m = nn.LeakyReLU(self.leak)(self.conv7(m))
-
-        return self.fc(m.view(-1, self.w_g * self.w_g * 512))
+    def forward(self, input):
+        output = self.main(input)
+        # output = output.view(output.size(0), -1)
+        # output = self.snlinear(output)
+        return output.view(-1, 1).squeeze(1)

@@ -1,144 +1,152 @@
-# ResNet generator and discriminator
-import numpy as np
-from torch import nn
+import torch.nn as nn
+import torch.nn.functional as F
 
-from .spectral_norm import SpectralNorm
-
-
-class ResBlockGenerator(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
-        super(ResBlockGenerator, self).__init__()
-
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding=1)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, padding=1)
-        nn.init.xavier_uniform_(self.conv1.weight.data, 1.0)
-        nn.init.xavier_uniform_(self.conv2.weight.data, 1.0)
-
-        self.model = nn.Sequential(
-            nn.BatchNorm2d(in_channels),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2),
-            self.conv1,
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            self.conv2,
-        )
-        self.bypass = nn.Sequential()
-        if stride != 1:
-            self.bypass = nn.Upsample(scale_factor=2)
-
-    def forward(self, x):
-        return self.model(x) + self.bypass(x)
+from .snconv2d import SNConv2d
+from .snlinear import SNLinear
 
 
 class ResBlockDiscriminator(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
+    def __init__(
+        self, in_channels, out_channels, hidden_channels=None, use_BN=False, downsample=False
+    ):
         super(ResBlockDiscriminator, self).__init__()
+        # self.conv1 = SNConv2d(n_dim, n_out, kernel_size=3, stride=2)
+        hidden_channels = in_channels
+        self.downsample = downsample
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding=1)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, padding=1)
-        nn.init.xavier_uniform_(self.conv1.weight.data, 1.0)
-        nn.init.xavier_uniform_(self.conv2.weight.data, 1.0)
+        self.resblock = self.make_res_block(
+            in_channels, out_channels, hidden_channels, use_BN, downsample
+        )
+        self.residual_connect = self.make_residual_connect(in_channels, out_channels)
 
-        if stride == 1:
-            self.model = nn.Sequential(
-                nn.ReLU(), SpectralNorm(self.conv1), nn.ReLU(), SpectralNorm(self.conv2)
-            )
+    def make_res_block(self, in_channels, out_channels, hidden_channels, use_BN, downsample):
+        model = []
+        if use_BN:
+            model += [nn.BatchNorm2d(in_channels)]
+
+        model += [nn.ReLU()]
+        model += [SNConv2d(in_channels, hidden_channels, kernel_size=3, padding=1)]
+        model += [nn.ReLU()]
+        model += [SNConv2d(hidden_channels, out_channels, kernel_size=3, padding=1)]
+        if downsample:
+            model += [nn.AvgPool2d(2)]
+        return nn.Sequential(*model)
+
+    def make_residual_connect(self, in_channels, out_channels):
+        model = []
+        model += [SNConv2d(in_channels, out_channels, kernel_size=1, padding=0)]
+        if self.downsample:
+            model += [nn.AvgPool2d(2)]
+            return nn.Sequential(*model)
         else:
-            self.model = nn.Sequential(
-                nn.ReLU(),
-                SpectralNorm(self.conv1),
-                nn.ReLU(),
-                SpectralNorm(self.conv2),
-                nn.AvgPool2d(2, stride=stride, padding=0),
-            )
-        self.bypass = nn.Sequential()
-        if stride != 1:
+            return nn.Sequential(*model)
 
-            self.bypass_conv = nn.Conv2d(in_channels, out_channels, 1, 1, padding=0)
-            nn.init.xavier_uniform_(self.bypass_conv.weight.data, np.sqrt(2))
-
-            self.bypass = nn.Sequential(
-                SpectralNorm(self.bypass_conv), nn.AvgPool2d(2, stride=stride, padding=0)
-            )
-            # if in_channels == out_channels:
-            #     self.bypass = nn.AvgPool2d(2, stride=stride, padding=0)
-            # else:
-            #     self.bypass = nn.Sequential(
-            #         SpectralNorm(nn.Conv2d(in_channels,out_channels, 1, 1, padding=0)),
-            #         nn.AvgPool2d(2, stride=stride, padding=0)
-            #     )
-
-    def forward(self, x):
-        return self.model(x) + self.bypass(x)
+    def forward(self, input):
+        return self.resblock(input) + self.residual_connect(input)
 
 
-# special ResBlock just for the first layer of the discriminator
-class FirstResBlockDiscriminator(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
-        super(FirstResBlockDiscriminator, self).__init__()
+class OptimizedBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(OptimizedBlock, self).__init__()
+        self.res_block = self.make_res_block(in_channels, out_channels)
+        self.residual_connect = self.make_residual_connect(in_channels, out_channels)
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, 1, padding=1)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, padding=1)
-        self.bypass_conv = nn.Conv2d(in_channels, out_channels, 1, 1, padding=0)
-        nn.init.xavier_uniform_(self.conv1.weight.data, 1.0)
-        nn.init.xavier_uniform_(self.conv2.weight.data, 1.0)
-        nn.init.xavier_uniform_(self.bypass_conv.weight.data, np.sqrt(2))
+    def make_res_block(self, in_channels, out_channels):
+        model = []
+        model += [SNConv2d(in_channels, out_channels, kernel_size=3, padding=1)]
+        model += [nn.ReLU()]
+        model += [SNConv2d(out_channels, out_channels, kernel_size=3, padding=1)]
+        model += [nn.AvgPool2d(2)]
+        return nn.Sequential(*model)
 
-        # we don't want to apply ReLU activation to raw image before convolution transformation.
-        self.model = nn.Sequential(
-            SpectralNorm(self.conv1), nn.ReLU(), SpectralNorm(self.conv2), nn.AvgPool2d(2)
-        )
-        self.bypass = nn.Sequential(
-            nn.AvgPool2d(2),
-            SpectralNorm(self.bypass_conv),
-        )
+    def make_residual_connect(self, in_channels, out_channels):
+        model = []
+        model += [SNConv2d(in_channels, out_channels, kernel_size=1, padding=0)]
+        model += [nn.AvgPool2d(2)]
+        return nn.Sequential(*model)
 
-    def forward(self, x):
-        return self.model(x) + self.bypass(x)
-
-
-class Generator(nn.Module):
-    def __init__(self, latent_dim, channels: int = 3, gen_size: int = 128):
-        super(Generator, self).__init__()
-        self.latent_dim = latent_dim
-        self.gen_size = gen_size
-
-        self.dense = nn.Linear(self.latent_dim, 4 * 4 * gen_size)
-        self.final = nn.Conv2d(gen_size, channels, 3, stride=1, padding=1)
-        nn.init.xavier_uniform_(self.dense.weight.data, 1.0)
-        nn.init.xavier_uniform_(self.final.weight.data, 1.0)
-
-        self.model = nn.Sequential(
-            ResBlockGenerator(gen_size, gen_size, stride=2),
-            ResBlockGenerator(gen_size, gen_size, stride=2),
-            ResBlockGenerator(gen_size, gen_size, stride=2),
-            nn.BatchNorm2d(gen_size),
-            nn.ReLU(),
-            self.final,
-            nn.Tanh(),
-        )
-
-    def forward(self, z):
-        return self.model(self.dense(z).view(-1, self.gen_size, 4, 4))
+    def forward(self, input):
+        return self.res_block(input) + self.residual_connect(input)
 
 
 class Discriminator(nn.Module):
-    def __init__(self, channels: int = 3, disc_size: int = 128):
+    def __init__(self, ndf=64, ndlayers=4):
         super(Discriminator, self).__init__()
-        self.disc_size = disc_size
+        self.res_d = self.make_model(ndf, ndlayers)
+        self.fc = nn.Sequential(SNLinear(ndf * 16, 1), nn.Sigmoid())
 
-        self.model = nn.Sequential(
-            FirstResBlockDiscriminator(channels, disc_size, stride=2),
-            ResBlockDiscriminator(disc_size, disc_size, stride=2),
-            ResBlockDiscriminator(disc_size, disc_size),
-            ResBlockDiscriminator(disc_size, disc_size),
-            nn.ReLU(),
-            nn.AvgPool2d(8),
-        )
-        self.fc = nn.Linear(disc_size, 1)
-        nn.init.xavier_uniform_(self.fc.weight.data, 1.0)
-        self.fc = SpectralNorm(self.fc)
+    def make_model(self, ndf, ndlayers):
+        model = []
+        model += [OptimizedBlock(3, ndf)]
+        tndf = ndf
+        for i in range(ndlayers):
+            model += [ResBlockDiscriminator(tndf, tndf * 2, downsample=True)]
+            tndf *= 2
+        model += [nn.ReLU()]
+        return nn.Sequential(*model)
 
-    def forward(self, x):
-        return self.fc(self.model(x).view(-1, self.disc_size))
+    def forward(self, input):
+        out = self.res_d(input)
+        out = F.avg_pool2d(out, out.size(3), stride=1)
+
+        out = out.view(-1, 1024)
+        return self.fc(out)
+
+
+class ResBlockGenerator(nn.Module):
+    def __init__(self, in_channels, out_channels, hidden_channels=None, upsample=False):
+        super(ResBlockGenerator, self).__init__()
+        # self.conv1 = SNConv2d(n_dim, n_out, kernel_size=3, stride=2)
+        hidden_channels = in_channels
+        self.upsample = upsample
+        self.conv1 = nn.Conv2d(in_channels, hidden_channels, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(hidden_channels, out_channels, kernel_size=3, padding=1)
+        self.conv_sc = nn.Conv2d(in_channels, out_channels, kernel_size=1, padding=0)
+        self.upsampling = nn.UpsamplingBilinear2d(scale_factor=2)
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.bn2 = nn.BatchNorm2d(hidden_channels)
+        self.relu = nn.ReLU()
+
+    def forward_residual_connect(self, input):
+        out = self.conv_sc(input)
+        if self.upsample:
+            out = self.upsampling(out)
+        # out = self.upconv2(out)
+        return out
+
+    def forward(self, input):
+        out = self.relu(self.bn1(input))
+        out = self.conv1(out)
+        if self.upsample:
+            out = self.upsampling(out)
+            # out = self.upconv1(out)
+        out = self.relu(self.bn2(out))
+        out = self.conv2(out)
+        out_res = self.forward_residual_connect(input)
+        return out + out_res
+
+
+class Generator(nn.Module):
+    def __init__(self, ngf, z=128, nlayers=4):
+        super(Generator, self).__init__()
+        self.input_layer = nn.Linear(z, (4**2) * ngf * 16)
+        self.generator = self.make_model(ngf, nlayers)
+
+    def make_model(self, ngf, nlayers):
+        model = []
+        tngf = ngf * 16
+        for _ in range(nlayers):
+            model += [ResBlockGenerator(tngf, tngf / 2, upsample=True)]
+            tngf /= 2
+        model += [nn.BatchNorm2d(ngf)]
+        model += [nn.ReLU()]
+        model += [nn.Conv2d(ngf, 3, kernel_size=3, stride=1, padding=1)]
+        model += [nn.Tanh()]
+        return nn.Sequential(*model)
+
+    def forward(self, z):
+        out = self.input_layer(z)
+        out = out.view(z.size(0), -1, 4, 4)
+        out = self.generator(out)
+
+        return out
