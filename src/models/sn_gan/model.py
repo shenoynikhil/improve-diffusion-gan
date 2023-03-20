@@ -101,7 +101,7 @@ class SpectralNormGAN(LightningModule):
         fake = torch.zeros(batch_size, 1).type_as(imgs)
 
         # generate noise
-        z = torch.normal(0, 1, (batch_size, self.latent_dim)).type_as(imgs)
+        z = torch.normal(0, 1, (batch_size, self.latent_dim, 1, 1)).type_as(imgs)
 
         # Generate a batch of images
         gen_imgs = self.generator(z)
