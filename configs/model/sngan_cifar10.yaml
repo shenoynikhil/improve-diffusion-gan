@@ -1,12 +1,12 @@
 _target_: src.models.SpectralNormGAN
 generator:
   _target_: src.models.sn_gan.Generator
-  latent_dim: 128
   channels: 3
+  latent_dim: 100
 discriminator:
   _target_: src.models.sn_gan.Discriminator
   channels: 3
 lr: 2e-4
 output_dir: ${paths.output_dir}
-loss_type: wasserstein
-disc_iters: 5
+loss_type: dcgan
+disc_iters: 1
