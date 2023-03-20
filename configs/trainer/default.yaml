@@ -2,5 +2,4 @@ _target_: pytorch_lightning.Trainer
 accelerator: auto
 devices: 1
 default_root_dir: ${paths.output_dir}
-max_epochs: 10
-logger: false
+max_epochs: 300

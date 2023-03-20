@@ -1,0 +1,12 @@
+_target_: src.models.SpectralNormGAN
+generator:
+  _target_: src.models.sn_gan.ResnetGenerator
+  latent_dim: 128
+  channels: 3
+discriminator:
+  _target_: src.models.sn_gan.ResnetDiscriminator
+  channels: 3
+lr: 2e-4
+output_dir: ${paths.output_dir}
+loss_type: wasserstein
+disc_iters: 5
