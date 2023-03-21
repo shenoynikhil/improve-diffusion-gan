@@ -173,5 +173,5 @@ class SpectralNormGAN(LightningModule):
     def generate_images(self, batch_size: int):
         with torch.no_grad():
             return self(
-                torch.normal(0, 1, (batch_size, self.latent_dim)).to(self.device),
+                torch.normal(0, 1, (batch_size, self.latent_dim, 1, 1)).to(self.device),
             )
