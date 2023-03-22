@@ -8,19 +8,19 @@ from .snconv2d import SNConv2d
 class Generator(nn.Module):
     """Generator Framework for WGAN-GP"""
 
-    def __init__(self, latent_dim: int, channels: int, final_size: int = 32):
+    def __init__(self, latent_dim: int, channels: int, img_size: int = 32):
         super().__init__()
         # Filters [1024, 512, 256]
         # Input_dim = 100
         # Output_dim = C (number of channels)
-        assert final_size == 32 or final_size == 28, "Final size must be 32 or 28"
+        assert img_size == 32 or img_size == 28, "Final size must be 32 or 28"
         self.latent_dim = latent_dim
         self.channels = channels
-        self.final_size = final_size
+        self.img_size = img_size
 
         self.main_module = nn.Sequential(
             # Z latent vector 100
-            # (1 - 1) * 1 + 1 * (4 - 1) + 1 = 4 -> (b, 1024, 4, 4) for final_size = 32/28
+            # (1 - 1) * 1 + 1 * (4 - 1) + 1 = 4 -> (b, 1024, 4, 4) for img_size = 32/28
             nn.ConvTranspose2d(
                 in_channels=latent_dim,
                 out_channels=1024,
@@ -31,20 +31,20 @@ class Generator(nn.Module):
             nn.BatchNorm2d(num_features=1024),
             nn.ReLU(True),
             # State (1024x4x4)
-            # (4 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 8 -> (b, 512, 8, 8) for final_size = 32
-            # (4 - 1) * 2 - 2 * 1 + 1 * (3 - 1) + 1 = 7 -> (b, 512, 7, 7) for final_size = 28
+            # (4 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 8 -> (b, 512, 8, 8) for img_size = 32
+            # (4 - 1) * 2 - 2 * 1 + 1 * (3 - 1) + 1 = 7 -> (b, 512, 7, 7) for img_size = 28
             nn.ConvTranspose2d(
                 in_channels=1024,
                 out_channels=512,
-                kernel_size=4 if final_size == 32 else 3,
+                kernel_size=4 if img_size == 32 else 3,
                 stride=2,
                 padding=1,
             ),
             nn.BatchNorm2d(num_features=512),
             nn.ReLU(True),
             # State (512x8x8)
-            # (8 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 16 -> (b, 256, 16, 16) for final_size = 32
-            # (7 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 14 -> (b, 256, 14, 14) for final_size = 28
+            # (8 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 16 -> (b, 256, 16, 16) for img_size = 32
+            # (7 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 14 -> (b, 256, 14, 14) for img_size = 28
             nn.ConvTranspose2d(
                 in_channels=512, out_channels=256, kernel_size=4, stride=2, padding=1
             ),
