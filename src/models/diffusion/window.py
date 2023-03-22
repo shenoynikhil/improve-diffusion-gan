@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from src.models.diffusion import Diffusion
+from .base import Diffusion
 
 
 def q_sample_window(
