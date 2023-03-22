@@ -45,7 +45,7 @@ class FID(pl.Callback):
             return
 
         # retrieve generated and real images from outputs, batch respectively
-        gen_imgs = outputs["gen_imgs"].detach().cpu()
+        gen_imgs = outputs[0]["gen_imgs"].detach().cpu()
         real_imgs = batch[0].detach().cpu()
 
         # # both images need to be converted to uint8 and values between 0 and 255
