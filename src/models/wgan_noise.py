@@ -6,10 +6,10 @@ import torch
 
 from .noiseAdder import GNadder
 from .utils import compute_metrics_no_aux
-from .wgan import WGAN_GP
+from .wgan import WGANGP
 
 
-class WGAN_NOISE(WGAN_GP):
+class WGAN_NOISE(WGANGP):
     """WGAN_GP Network"""
 
     def __init__(
