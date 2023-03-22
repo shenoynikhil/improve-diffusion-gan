@@ -15,19 +15,19 @@ from .utils import compute_metrics_no_aux, sample_image
 class Generator(nn.Module):
     """Generator Framework for GAN"""
 
-    def __init__(self, latent_dim: int, channels: int, final_size: int = 32):
+    def __init__(self, latent_dim: int, channels: int, img_size: int = 32):
         super().__init__()
         # Filters [1024, 512, 256]
         # Input_dim = 100
         # Output_dim = C (number of channels)
-        assert final_size == 32 or final_size == 28, "Final size must be 32 or 28"
+        assert img_size == 32 or img_size == 28, "Final size must be 32 or 28"
         self.latent_dim = latent_dim
         self.channels = channels
-        self.final_size = final_size
+        self.img_size = img_size
 
         self.main_module = nn.Sequential(
             # Z latent vector 100
-            # (1 - 1) * 1 + 1 * (4 - 1) + 1 = 4 -> (b, 1024, 4, 4) for final_size = 32/28
+            # (1 - 1) * 1 + 1 * (4 - 1) + 1 = 4 -> (b, 1024, 4, 4) for img_size = 32/28
             nn.ConvTranspose2d(
                 in_channels=latent_dim,
                 out_channels=1024,
@@ -38,20 +38,20 @@ class Generator(nn.Module):
             nn.BatchNorm2d(num_features=1024),
             nn.ReLU(True),
             # State (1024x4x4)
-            # (4 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 8 -> (b, 512, 8, 8) for final_size = 32
-            # (4 - 1) * 2 - 2 * 1 + 1 * (3 - 1) + 1 = 7 -> (b, 512, 7, 7) for final_size = 28
+            # (4 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 8 -> (b, 512, 8, 8) for img_size = 32
+            # (4 - 1) * 2 - 2 * 1 + 1 * (3 - 1) + 1 = 7 -> (b, 512, 7, 7) for img_size = 28
             nn.ConvTranspose2d(
                 in_channels=1024,
                 out_channels=512,
-                kernel_size=4 if final_size == 32 else 3,
+                kernel_size=4 if img_size == 32 else 3,
                 stride=2,
                 padding=1,
             ),
             nn.BatchNorm2d(num_features=512),
             nn.ReLU(True),
             # State (512x8x8)
-            # (8 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 16 -> (b, 256, 16, 16) for final_size = 32
-            # (7 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 14 -> (b, 256, 14, 14) for final_size = 28
+            # (8 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 16 -> (b, 256, 16, 16) for img_size = 32
+            # (7 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 14 -> (b, 256, 14, 14) for img_size = 28
             nn.ConvTranspose2d(
                 in_channels=512, out_channels=256, kernel_size=4, stride=2, padding=1
             ),
@@ -189,12 +189,12 @@ class VanillaGAN(LightningModule):
         self.initial_k = top_k_critic  # will be reduced as training progresses
 
         # Diffusion Module
-        if diffusion_module is not None:
+        self.diffusion_module = diffusion_module
+        if self.diffusion_module is not None:
             assert isinstance(
-                diffusion_module, Diffusion
+                self.diffusion_module, Diffusion
             ), "diffusion_module must be an instance of Diffusion"
             self.ada_interval = ada_interval
-            self.diffusion_module = diffusion_module
 
     def configure_optimizers(self):
         """Configure optimizers for generator and discriminator"""
@@ -230,7 +230,7 @@ class VanillaGAN(LightningModule):
 
     def training_step_end(self, step_output):
         """Perform Diffusion Module update after each training step"""
-        if self.global_step % self.ada_interval == 0:
+        if self.diffusion_module is not None and self.global_step % self.ada_interval == 0:
             self.diffusion_module.update_T()
 
     def training_step(self, batch, batch_idx, optimizer_idx):
@@ -295,7 +295,7 @@ class VanillaGAN(LightningModule):
             self.log_dict(metrics, prog_bar=True)
             return step_output
 
-    def on_train_epoch_end(self):
+    def training_epoch_end(self, outputs):
         """At the end of training epoch, generate synthetic images"""
         # Get labels ranging from 0 to n_classes for n rows, do this every 10 epochs
         path = os.path.join(self.output_dir, "gen_images")
