@@ -15,7 +15,7 @@ def normalize(x):
 class FID(pl.Callback):
     """Callback to Compute the Frechet Inception Distance between real and generated images"""
 
-    def __init__(self, feature: int = 64):
+    def __init__(self, feature: int = 64, every_k_epochs: int = 10):
         super().__init__()
         self.feature = feature
         assert self.feature in [
@@ -25,19 +25,10 @@ class FID(pl.Callback):
             2048,
         ], f"Feature size {feature} inputted is not supported"
 
-        # initialize metric
-        self.fid = FrechetInceptionDistance(feature=self.feature, reset_real_features=True)
+        self.every_k_epochs = every_k_epochs
 
-    def on_fit_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
-        """Check if pl_module is of type ACGAN or WACGAN_GP"""
-        class_name = type(pl_module).__name__
-        assert class_name in [
-            "ACGAN",
-            "WACGAN_GP",
-        ], f"{class_name} not supported with this Callback"
-        assert hasattr(
-            pl_module, "generate_images"
-        ), f"{class_name} does not have generate_images Callback"
+        # initialize metric
+        self.fid = FrechetInceptionDistance(feature=self.feature, reset_real_features=False)
 
     def on_train_batch_end(
         self,
@@ -49,6 +40,10 @@ class FID(pl.Callback):
         unused: Optional[int] = 0,
     ) -> None:
         """Compute FID Score at the end of epoch"""
+        # only compute FID score every k epochs
+        if trainer.current_epoch % self.every_k_epochs != 0:
+            return
+
         # retrieve generated and real images from outputs, batch respectively
         gen_imgs = outputs["gen_imgs"].detach().cpu()
         real_imgs = batch[0].detach().cpu()
@@ -62,4 +57,9 @@ class FID(pl.Callback):
         self.fid.update(gen_imgs, real=False)
 
     def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        """Compute FID Score at the end of epoch"""
+        # only compute FID score every k epochs
+        if trainer.current_epoch % self.every_k_epochs != 0:
+            return
+
         pl_module.log("epoch-fid", self.fid.compute())
