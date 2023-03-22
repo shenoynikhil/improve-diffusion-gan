@@ -1,0 +1,13 @@
+_target_: src.models.SpectralNormGAN
+generator:
+  _target_: src.models.sn_gan.Generator
+  channels: 1
+  latent_dim: 100
+  img_size: 28
+discriminator:
+  _target_: src.models.sn_gan.Discriminator
+  channels: 1
+lr: 2e-4
+output_dir: ${paths.output_dir}
+loss_type: dcgan
+disc_iters: 1
