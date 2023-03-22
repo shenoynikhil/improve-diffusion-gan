@@ -1,8 +1,4 @@
-"""LightningModule to setup ACGAN setup. Contains instructions about
-- Generator and Discriminator
-- Optimizer to be used (currently hardcoded)
-- training_step given batch and optimizer_idx (whether to optimize generator or discriminator)
-"""
+"""LightningModule to setup VanillaGAN setup"""
 
 import os
 from typing import List
