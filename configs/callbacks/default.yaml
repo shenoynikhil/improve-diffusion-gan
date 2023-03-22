@@ -1,3 +1,4 @@
 defaults:
   - is.yaml
+  - fid.yaml
   - _self_
