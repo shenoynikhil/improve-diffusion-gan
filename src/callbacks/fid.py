@@ -15,7 +15,7 @@ def normalize(x):
 class FID(pl.Callback):
     """Callback to Compute the Frechet Inception Distance between real and generated images"""
 
-    def __init__(self, feature: int = 64, every_k_epochs: int = 10):
+    def __init__(self, feature: int = 64, every_k_epochs: int = 50):
         super().__init__()
         self.feature = feature
         assert self.feature in [
