@@ -192,9 +192,9 @@ class WGAN_GP(VanillaGAN):
             # gen_pred_loss by mean across batch dim, shape => (batch_size, 1)
             if self.top_k_critic > 0:
                 valid_gen_pred, _ = torch.topk(gen_pred, self.initial_k, dim=0)
-                g_loss = -torch.mean(valid_gen_pred) / 2
+                g_loss = -torch.mean(valid_gen_pred)
             else:
-                g_loss = -torch.mean(gen_pred) / 2
+                g_loss = -torch.mean(gen_pred)
 
             # update storage and logs with generator loss
             self.log("g_loss", g_loss, prog_bar=True)
@@ -209,17 +209,17 @@ class WGAN_GP(VanillaGAN):
             # Loss for real/fake images
             # 1. discriminator forward pass on imgs/gen_imgs
             # 2. real/fake_pred_loss by mean across batch dim, shape => (batch_size, 1)
-            # 3. loss = (gen_pred_loss - realpred_loss) / 2
+            # 3. loss = (gen_pred_loss - realpred_loss)
 
             # For real imgs
             real_pred = self.discriminator(imgs)
             real_pred_loss = torch.mean(real_pred)
-            real_loss = -real_pred_loss / 2
+            real_loss = -real_pred_loss
 
             # For gen imgs
             fake_pred = self.discriminator(gen_imgs)
             fake_pred_loss = torch.mean(fake_pred)
-            fake_loss = fake_pred_loss / 2
+            fake_loss = fake_pred_loss
 
             # Compute Gradient Penalty
             gradient_penalty = self.compute_gradient_penalty(imgs.data, gen_imgs.data)
