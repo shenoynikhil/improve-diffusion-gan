@@ -1,33 +1,32 @@
 """LightningModule to setup WACGAN setup.
 """
 
-from collections import defaultdict
 from typing import List
 
-import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 
-from .acgan import ACGAN
+from .diffusion import Diffusion
 from .utils import compute_metrics_no_aux
+from .vanilla_gan import VanillaGAN
 
 
 class Generator(nn.Module):
     """Generator Framework for WGAN-GP"""
 
-    def __init__(self, latent_dim: int, channels: int, final_size: int = 32):
+    def __init__(self, latent_dim: int, channels: int, img_size: int = 32):
         super().__init__()
         # Filters [1024, 512, 256]
         # Input_dim = 100
         # Output_dim = C (number of channels)
-        assert final_size == 32 or final_size == 28, "Final size must be 32 or 28"
+        assert img_size == 32 or img_size == 28, "Final size must be 32 or 28"
         self.latent_dim = latent_dim
         self.channels = channels
-        self.final_size = final_size
+        self.img_size = img_size
 
         self.main_module = nn.Sequential(
             # Z latent vector 100
-            # (1 - 1) * 1 + 1 * (4 - 1) + 1 = 4 -> (b, 1024, 4, 4) for final_size = 32/28
+            # (1 - 1) * 1 + 1 * (4 - 1) + 1 = 4 -> (b, 1024, 4, 4) for img_size = 32/28
             nn.ConvTranspose2d(
                 in_channels=latent_dim,
                 out_channels=1024,
@@ -38,20 +37,20 @@ class Generator(nn.Module):
             nn.BatchNorm2d(num_features=1024),
             nn.ReLU(True),
             # State (1024x4x4)
-            # (4 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 8 -> (b, 512, 8, 8) for final_size = 32
-            # (4 - 1) * 2 - 2 * 1 + 1 * (3 - 1) + 1 = 7 -> (b, 512, 7, 7) for final_size = 28
+            # (4 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 8 -> (b, 512, 8, 8) for img_size = 32
+            # (4 - 1) * 2 - 2 * 1 + 1 * (3 - 1) + 1 = 7 -> (b, 512, 7, 7) for img_size = 28
             nn.ConvTranspose2d(
                 in_channels=1024,
                 out_channels=512,
-                kernel_size=4 if final_size == 32 else 3,
+                kernel_size=4 if img_size == 32 else 3,
                 stride=2,
                 padding=1,
             ),
             nn.BatchNorm2d(num_features=512),
             nn.ReLU(True),
             # State (512x8x8)
-            # (8 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 16 -> (b, 256, 16, 16) for final_size = 32
-            # (7 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 14 -> (b, 256, 14, 14) for final_size = 28
+            # (8 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 16 -> (b, 256, 16, 16) for img_size = 32
+            # (7 - 1) * 2 - 2 * 1 + 1 * (4 - 1) + 1 = 14 -> (b, 256, 14, 14) for img_size = 28
             nn.ConvTranspose2d(
                 in_channels=512, out_channels=256, kernel_size=4, stride=2, padding=1
             ),
@@ -131,65 +130,36 @@ class Discriminator(torch.nn.Module):
         x = self.fc(x)
         return self.output(x)
 
-    def feature_extraction(self, x):
-        # Use discriminator for feature extraction then flatten to vector of 16384
-        x = self.main_module(x)
-        return x.view(-1, 1024 * 4 * 4)
 
-
-class WGANGP(ACGAN):
-    """WGANGP Network"""
+class WGAN_GP(VanillaGAN):
+    """WGAN_GP Network"""
 
     def __init__(
         self,
-        generator,
-        discriminator,
-        critic_iter: int = 5,
+        generator: Generator,
+        discriminator: Discriminator,
+        output_dir: str,
+        lr: float = 0.0001,
+        disc_iters: int = 5,
         lambda_term: int = 10,
-        lr: float = 0.002,
-        output_dir: str = None,
+        # top_k training
+        top_k_critic: int = 0,
+        # Diffusion Module and related args
+        diffusion_module: Diffusion = None,
+        ada_interval: int = 4,
     ):
-        pl.LightningModule.__init__(self)
-        self.generator = generator
-        self.discriminator = discriminator
-
-        # signifies how many iterations disciminator is optimized rel to generator
-        self.critic_iter = critic_iter
-        # used to multiply this with gradient clipping value
+        super().__init__(
+            generator,
+            discriminator,
+            output_dir,
+            lr,
+            disc_iters,
+            top_k_critic,
+            diffusion_module,
+            ada_interval,
+        )
         self.lambda_term = lambda_term
-
-        # set latent_dim
-        assert hasattr(self.generator, "latent_dim") and hasattr(
-            self.generator, "channels"
-        ), "Generator must have attribute latent_dim and channels"
-        self.latent_dim = self.generator.latent_dim
         self.channels = self.generator.channels
-
-        # check output dir for saving generated images
-        self.output_dir = output_dir
-
-        self.lr = lr
-
-        self.storage = defaultdict(list)
-
-    def forward(self, z):
-        return self.generator(z)
-
-    def configure_optimizers(self):
-        """Configure Optimizers"""
-        optimizer_g = torch.optim.Adam(
-            self.generator.parameters(),
-            lr=self.lr,
-        )
-        optimizer_d = torch.optim.Adam(
-            self.discriminator.parameters(),
-            lr=self.lr,
-        )
-        # ensure optimizer_d frequency is self.critic_iter times more
-        return (
-            {"optimizer": optimizer_g, "frequency": 1},
-            {"optimizer": optimizer_d, "frequency": self.critic_iter},
-        )
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         """Describes the Training Step / Forward Pass of a WACGAN with Gradient Clipping"""
@@ -208,16 +178,23 @@ class WGANGP(ACGAN):
         # this will be updated with loss and returned
         step_output = {"gen_imgs": gen_imgs.detach().cpu()}
 
+        if self.diffusion_module is not None:
+            # Diffuse into both real and generated images
+            t = self.diffusion_module.sample_t(batch_size)
+            imgs, _ = self.diffusion_module(imgs, t)
+            gen_imgs, _ = self.diffusion_module(gen_imgs, t)
+
         # train generator
         if optimizer_idx == 0:
             # Loss measures generator's ability to fool the discriminator
             gen_pred = self.discriminator(gen_imgs)
 
             # gen_pred_loss by mean across batch dim, shape => (batch_size, 1)
-            gen_pred_loss = torch.mean(gen_pred)
-
-            # compute g_loss
-            g_loss = -gen_pred_loss / 2
+            if self.top_k_critic > 0:
+                valid_gen_pred, _ = torch.topk(gen_pred, self.initial_k, dim=0)
+                g_loss = -torch.mean(valid_gen_pred) / 2
+            else:
+                g_loss = -torch.mean(gen_pred) / 2
 
             # update storage and logs with generator loss
             self.log("g_loss", g_loss, prog_bar=True)
@@ -262,10 +239,6 @@ class WGANGP(ACGAN):
                 apply_sigmoid=True,
             )
 
-            # update storage with metrics
-            for metric, metric_val in metrics.items():
-                self.storage[metric].append(metric_val)
-
             self.log_dict(metrics, prog_bar=True)
             return step_output
 
@@ -294,10 +267,3 @@ class WGANGP(ACGAN):
         gradients = gradients.view(gradients.size(0), -1).to(self.device)
         gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
         return gradient_penalty
-
-    def generate_images(self, batch_size: int):
-        """Generate Images function"""
-        with torch.no_grad():
-            return self(
-                torch.randn((batch_size, self.latent_dim, 1, 1)).to(self.device),
-            )

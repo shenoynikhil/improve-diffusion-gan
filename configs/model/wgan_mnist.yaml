@@ -1,5 +1,5 @@
 _target_: src.models.WGAN_GP
-critic_iter: 5
+disc_iters: 5
 lambda_term: 10
 output_dir: ${paths.output_dir}
 lr: 0.0001

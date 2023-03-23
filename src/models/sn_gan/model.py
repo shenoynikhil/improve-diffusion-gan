@@ -1,21 +1,18 @@
 """Spectral Normalization GAN
 Implementation from https://github.com/christiancosgrove/pytorch-spectral-normalization-gan
 """
-import os
-from collections import defaultdict
-from typing import Union
 
 import torch
 import torch.nn.functional as F
-from pytorch_lightning import LightningModule
 
-from ..utils import compute_metrics_no_aux, sample_image
+from src.models.diffusion import Diffusion
+from src.models.vanilla_gan import VanillaGAN
+
+from ..utils import compute_metrics_no_aux
 from .dg import Discriminator, Generator
-from .dg_resnet import Discriminator as ResnetDiscriminator
-from .dg_resnet import Generator as ResnetGenerator
 
 
-class SpectralNormGAN(LightningModule):
+class SpectralNormGAN(VanillaGAN):
     """VanillaGAN Implementation
 
     Parameters
@@ -30,59 +27,31 @@ class SpectralNormGAN(LightningModule):
 
     def __init__(
         self,
-        generator: Union[Generator, ResnetGenerator],
-        discriminator: Union[Discriminator, ResnetDiscriminator],
-        lr: float,
+        generator: Generator,
+        discriminator: Discriminator,
         output_dir: str,
-        loss_type: str = "wasserstein",
+        lr: float = 0.0001,
         disc_iters: int = 5,
+        # top_k training
         top_k_critic: int = 0,
+        # Diffusion Module and related args
+        diffusion_module: Diffusion = None,
+        ada_interval: int = 4,
+        loss_type: str = "wasserstein",
     ):
-        super().__init__()
-        assert isinstance(
-            generator, (Generator, ResnetGenerator)
-        ), "Generator must be an instance of Generator"
-        assert isinstance(
-            discriminator, (Discriminator, ResnetDiscriminator)
-        ), "Discriminator must be an instance of Discriminator"
-
-        self.generator: Union[Generator, ResnetGenerator] = generator
-        self.discriminator: Union[Discriminator, ResnetDiscriminator] = discriminator
-
-        assert hasattr(generator, "latent_dim"), "Generator must have latent_dim attribute"
-        self.latent_dim = generator.latent_dim
+        super().__init__(
+            generator,
+            discriminator,
+            output_dir,
+            lr,
+            disc_iters,
+            top_k_critic,
+            diffusion_module,
+            ada_interval,
+        )
         self.loss_type = loss_type
-        self.disc_iters = disc_iters
-        self.top_k_critic = top_k_critic
 
-        # check output dir for saving generated images
-        self.output_dir = output_dir
-
-        self.lr = lr
-
-        self.storage = defaultdict(list)
-
-    def configure_optimizers(self):
-        """Configure optimizers for generator and discriminator"""
-        # instantiate ADAM optimizer
-        # TODO: make this more flexible
-        optimizer_g = torch.optim.Adam(
-            self.generator.parameters(),
-            lr=self.lr,
-        )
-        optimizer_d = torch.optim.Adam(
-            self.discriminator.parameters(),
-            lr=self.lr,
-        )
-        return {"optimizer": optimizer_g, "frequency": 1}, {
-            "optimizer": optimizer_d,
-            "frequency": self.disc_iters,
-        }
-
-    def forward(self, z):
-        return self.generator(z)
-
-    def adversarial_loss(self, y_hat, y):
+    def generator_loss(self, y_hat, y):
         """Binary Cross Entropy loss between y_hat and y"""
         if self.loss_type == "wasserstein":
             if self.top_k_critic > 0:
@@ -111,7 +80,7 @@ class SpectralNormGAN(LightningModule):
         fake = torch.zeros(batch_size, 1).type_as(imgs)
 
         # generate noise
-        z = torch.normal(0, 1, (batch_size, self.latent_dim)).type_as(imgs)
+        z = torch.normal(0, 1, (batch_size, self.latent_dim, 1, 1)).type_as(imgs)
 
         # Generate a batch of images
         gen_imgs = self.generator(z)
@@ -123,10 +92,9 @@ class SpectralNormGAN(LightningModule):
         if optimizer_idx == 0:
             # Loss measures generator's ability to fool the discriminator
             validity = self.discriminator(gen_imgs)
-            g_loss = self.adversarial_loss(validity, valid)
+            g_loss = self.generator_loss(validity, valid)
 
-            # update storage and logs with generator loss
-            self.storage["g_loss"].append(g_loss)
+            # log generator loss
             self.log("g_loss", g_loss, prog_bar=True)
 
             # update step_output
@@ -143,8 +111,7 @@ class SpectralNormGAN(LightningModule):
             # compute discriminator loss
             d_loss = self.discriminator_loss(real_pred, fake_pred, valid, fake)
 
-            # update storage and logs with discriminator loss
-            self.storage["d_loss"].append(d_loss)
+            # log discriminator loss
             self.log("d_loss", d_loss, prog_bar=True)
 
             # compute metrics
@@ -155,33 +122,9 @@ class SpectralNormGAN(LightningModule):
                 fake,
             )
 
-            # update storage with metrics
-            for metric, metric_val in metrics.items():
-                self.storage[metric].append(metric_val)
-
             self.log_dict(metrics, prog_bar=True)
 
             # update step_output
             step_output["loss"] = d_loss
 
             return step_output
-
-    def on_train_epoch_end(self):
-        """At the end of training epoch, generate synthetic images"""
-        # Get labels ranging from 0 to n_classes for n rows, do this every 10 epochs
-        path = os.path.join(self.output_dir, "gen_images")
-        os.makedirs(path, exist_ok=True)
-        if self.current_epoch % 10 == 0:
-            gen_imgs = self.generate_images(batch_size=100)
-            sample_image(
-                gen_imgs=gen_imgs,
-                n_row=10,
-                epochs_done=self.current_epoch,
-                output_dir=path,
-            )
-
-    def generate_images(self, batch_size: int):
-        with torch.no_grad():
-            return self(
-                torch.normal(0, 1, (batch_size, self.latent_dim)).to(self.device),
-            )

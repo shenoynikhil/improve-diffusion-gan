@@ -1,0 +1,8 @@
+# @package _global_
+
+task_name: cifar10_sngan_w_diffusion
+
+defaults:
+  - /model/diffusion_module: base.yaml
+  - override /datamodule: cifar10.yaml
+  - override /model: sngan_cifar10.yaml

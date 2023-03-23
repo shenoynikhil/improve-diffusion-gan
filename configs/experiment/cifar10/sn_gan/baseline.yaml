@@ -1,7 +1,7 @@
 # @package _global_
 
-task_name: cifar10_acgan
+task_name: cifar10_sngan
 
 defaults:
   - override /datamodule: cifar10.yaml
-  - override /model: acgan_cifar10.yaml
+  - override /model: sngan_cifar10.yaml

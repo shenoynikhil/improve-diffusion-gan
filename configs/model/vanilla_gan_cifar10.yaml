@@ -9,4 +9,3 @@ generator:
 discriminator:
   _target_: src.models.Discriminator
   channels: 3
-  img_size: 32

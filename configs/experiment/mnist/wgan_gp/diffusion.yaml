@@ -1,0 +1,8 @@
+# @package _global_
+
+task_name: mnist_wgan_gp_w_diffusion
+
+defaults:
+  - /model/diffusion_module: base.yaml
+  - override /datamodule: mnist.yaml
+  - override /model: wgan_mnist.yaml

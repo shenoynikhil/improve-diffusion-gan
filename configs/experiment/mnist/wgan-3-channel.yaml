@@ -9,6 +9,6 @@ defaults:
 model:
   generator:
     channels: 3
-    final_size: 28
+    img_size: 28
   discriminator:
     channels: 3
