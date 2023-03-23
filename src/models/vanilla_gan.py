@@ -313,7 +313,7 @@ class VanillaGAN(LightningModule):
         if self.top_k_critic > 0:
             # 75% of batch size is the minimum value possible
             min_value_possible = int(0.75 * self.trainer.datamodule.batch_size)
-            self.initial_k = max(min_value_possible, 0.99 * self.initial_k)
+            self.initial_k = max(min_value_possible, int(0.99 * self.initial_k))
             # log value of k
             self.log("k", self.initial_k, prog_bar=True)
 
