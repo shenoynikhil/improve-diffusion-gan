@@ -1,6 +1,8 @@
 # Improved Training Techniques for Diffusion-GANs
 As part of Course Project in [CPSC533R: Computer Graphics and Computer Vision](https://www.cs.ubc.ca/~rhodin/2022_2023_CPSC_533R/).
 
+Our techniques build upon the original [Diffusion-GAN](https://openreview.net/forum?id=HZf7UbpWHuA) paper.
+
 The following GANs are supported,
 * VanillaGAN (DCGAN)
 * Wasserstein GAN with Gradient Penalty (WGAN_GP)
