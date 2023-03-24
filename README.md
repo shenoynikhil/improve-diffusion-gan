@@ -1,6 +1,11 @@
 # Improved Training Techniques for Diffusion-GANs
 As part of Course Project in [CPSC533R: Computer Graphics and Computer Vision](https://www.cs.ubc.ca/~rhodin/2022_2023_CPSC_533R/).
 
+The following GANs are supported,
+* VanillaGAN (DCGAN)
+* Wasserstein GAN with Gradient Penalty (WGAN_GP)
+* Spectral Normalization GAN (SN_GAN)
+
 ### Setup
 ```bash
 # Create a new conda environment
