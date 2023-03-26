@@ -237,15 +237,19 @@ class VanillaGAN(LightningModule):
         """Perform diffusion operations"""
         batch_size = len(imgs)
 
+        # sample a time step
         t = self.diffusion_module.sample_t(batch_size)
+
+        # noise images using noise with variance based on time step
         imgs, _ = self.diffusion_module(imgs, t)
         gen_imgs, _ = self.diffusion_module(gen_imgs, t)
 
-        batch_size = len(imgs)
-
-        if batch_idx % self.ada_interval == 0:  # check update_T condition
+        # check update_T condition
+        if batch_idx % self.ada_interval == 0:
+            # perform non-training operation under no_grad()
             with torch.no_grad():
-                C = batch_size * self.ada_interval / (self.ada_kimg * 1000)  # from original code
+                # from original code
+                C = batch_size * self.ada_interval / (self.ada_kimg * 1000)
                 adjust = (
                     (torch.sign(self.discriminator(imgs).mean() - self.ada_target) * C)
                     .cpu()
