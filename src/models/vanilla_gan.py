@@ -228,10 +228,10 @@ class VanillaGAN(LightningModule):
 
         return F.binary_cross_entropy_with_logits(y_hat, y)
 
-    def training_step_end(self, step_output):
-        """Perform Diffusion Module update after each training step"""
-        if self.diffusion_module is not None and self.global_step % self.ada_interval == 0:
-            self.diffusion_module.update_T()
+    # def training_step_end(self, step_output):
+    #     """Perform Diffusion Module update after each training step"""
+    #     if self.diffusion_module is not None and self.global_step % self.ada_interval == 0:
+    #         self.diffusion_module.update_T()
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, _ = batch
@@ -255,6 +255,18 @@ class VanillaGAN(LightningModule):
             t = self.diffusion_module.sample_t(batch_size)
             imgs, _ = self.diffusion_module(imgs, t)
             gen_imgs, _ = self.diffusion_module(gen_imgs, t)
+
+            ada_interval = 4 # from original code
+            ada_target = 0.6 # from original code
+            ada_kimg = 100   # from original code
+            batch_size = len(imgs)
+
+            if batch_idx%ada_interval == 0:  # check update_T condition
+                with torch.no_grad():
+                    C = batch_size*ada_interval/(ada_kimg*1000) # from original code
+                    adjust = (torch.sign(self.discriminator(imgs).mean() - ada_target)*C).cpu().numpy()
+                    self.diffusion_module.p= (self.diffusion_module.p + adjust).clip(min=0, max=1.)
+                    self.diffusion_module.update_T()
 
         # train generator
         if optimizer_idx == 0:
