@@ -6,7 +6,6 @@ from typing import List
 import torch
 import torch.nn as nn
 
-from .diffusion import Diffusion
 from .utils import compute_metrics_no_aux
 from .vanilla_gan import VanillaGAN
 
@@ -134,30 +133,8 @@ class Discriminator(torch.nn.Module):
 class WGAN_GP(VanillaGAN):
     """WGAN_GP Network"""
 
-    def __init__(
-        self,
-        generator: Generator,
-        discriminator: Discriminator,
-        output_dir: str,
-        lr: float = 0.0001,
-        disc_iters: int = 5,
-        lambda_term: int = 10,
-        # top_k training
-        top_k_critic: int = 0,
-        # Diffusion Module and related args
-        diffusion_module: Diffusion = None,
-        ada_interval: int = 4,
-    ):
-        super().__init__(
-            generator,
-            discriminator,
-            output_dir,
-            lr,
-            disc_iters,
-            top_k_critic,
-            diffusion_module,
-            ada_interval,
-        )
+    def __init__(self, lambda_term: int = 10, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.lambda_term = lambda_term
         self.channels = self.generator.channels
 
@@ -179,23 +156,7 @@ class WGAN_GP(VanillaGAN):
         step_output = {"gen_imgs": gen_imgs.detach().cpu()}
 
         if self.diffusion_module is not None:
-            # Diffuse into both real and generated images
-            t = self.diffusion_module.sample_t(batch_size)
-            imgs, _ = self.diffusion_module(imgs, t)
-            gen_imgs, _ = self.diffusion_module(gen_imgs, t)
-            
-            ada_interval = 4 # from original code
-            ada_target = 0.6 # from original code
-            ada_kimg = 100   # from original code
-            batch_size = len(imgs)
-
-            if batch_idx%ada_interval == 0:  # check update_T condition
-                with torch.no_grad():
-                    C = batch_size*ada_interval/(ada_kimg*1000) # from original code
-                    adjust = (torch.sign(self.discriminator(imgs).mean() - ada_target)*C).cpu().numpy()
-                    self.diffusion_module.p= (self.diffusion_module.p + adjust).clip(min=0, max=1.)
-                    self.diffusion_module.update_T()
-
+            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx)
 
         # train generator
         if optimizer_idx == 0:
@@ -205,9 +166,9 @@ class WGAN_GP(VanillaGAN):
             # gen_pred_loss by mean across batch dim, shape => (batch_size, 1)
             if self.top_k_critic > 0:
                 valid_gen_pred, _ = torch.topk(gen_pred, self.initial_k, dim=0)
-                g_loss = -torch.mean(valid_gen_pred) / 2
+                g_loss = -torch.mean(valid_gen_pred)
             else:
-                g_loss = -torch.mean(gen_pred) / 2
+                g_loss = -torch.mean(gen_pred)
 
             # update storage and logs with generator loss
             self.log("g_loss", g_loss, prog_bar=True)
@@ -222,17 +183,17 @@ class WGAN_GP(VanillaGAN):
             # Loss for real/fake images
             # 1. discriminator forward pass on imgs/gen_imgs
             # 2. real/fake_pred_loss by mean across batch dim, shape => (batch_size, 1)
-            # 3. loss = (gen_pred_loss - realpred_loss) / 2
+            # 3. loss = (gen_pred_loss - realpred_loss)
 
             # For real imgs
             real_pred = self.discriminator(imgs)
             real_pred_loss = torch.mean(real_pred)
-            real_loss = -real_pred_loss / 2
+            real_loss = -real_pred_loss
 
             # For gen imgs
             fake_pred = self.discriminator(gen_imgs)
             fake_pred_loss = torch.mean(fake_pred)
-            fake_loss = fake_pred_loss / 2
+            fake_loss = fake_pred_loss
 
             # Compute Gradient Penalty
             gradient_penalty = self.compute_gradient_penalty(imgs.data, gen_imgs.data)

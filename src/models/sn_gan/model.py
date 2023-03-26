@@ -5,11 +5,9 @@ Implementation from https://github.com/christiancosgrove/pytorch-spectral-normal
 import torch
 import torch.nn.functional as F
 
-from src.models.diffusion import Diffusion
 from src.models.vanilla_gan import VanillaGAN
 
 from ..utils import compute_metrics_no_aux
-from .dg import Discriminator, Generator
 
 
 class SpectralNormGAN(VanillaGAN):
@@ -25,30 +23,8 @@ class SpectralNormGAN(VanillaGAN):
         Learning rate for the optimizer
     """
 
-    def __init__(
-        self,
-        generator: Generator,
-        discriminator: Discriminator,
-        output_dir: str,
-        lr: float = 0.0001,
-        disc_iters: int = 5,
-        # top_k training
-        top_k_critic: int = 0,
-        # Diffusion Module and related args
-        diffusion_module: Diffusion = None,
-        ada_interval: int = 4,
-        loss_type: str = "wasserstein",
-    ):
-        super().__init__(
-            generator,
-            discriminator,
-            output_dir,
-            lr,
-            disc_iters,
-            top_k_critic,
-            diffusion_module,
-            ada_interval,
-        )
+    def __init__(self, loss_type: str = "wasserstein", *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.loss_type = loss_type
 
     def generator_loss(self, y_hat, y):
@@ -87,6 +63,10 @@ class SpectralNormGAN(VanillaGAN):
 
         # construct step output
         step_output = {"gen_imgs": gen_imgs}
+
+        # perform diffusion ops
+        if self.diffusion_module is not None:
+            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx)
 
         # train generator
         if optimizer_idx == 0:

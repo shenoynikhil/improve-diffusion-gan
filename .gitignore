@@ -2,6 +2,7 @@
 data/
 output/
 logs/
+wandb/
 
 # random generated files
 __pycache__

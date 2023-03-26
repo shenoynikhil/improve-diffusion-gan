@@ -111,7 +111,7 @@ class Diffusion(torch.nn.Module):
         aug="no",
         ada_maxp=None,
         ts_dist="priority",
-        reverse=False
+        reverse=False,
     ):
         super().__init__()
         self.p = 0.0  # Overall multiplier for augmentation probability.
@@ -155,7 +155,7 @@ class Diffusion(torch.nn.Module):
 
         if self.reverse:
             alphas_cumprod = 1 - alphas_cumprod
-            
+
         self.alphas_bar_sqrt = torch.sqrt(alphas_cumprod)
         self.one_minus_alphas_bar_sqrt = torch.sqrt(1 - alphas_cumprod)
 
@@ -203,3 +203,19 @@ class Diffusion(torch.nn.Module):
             noise_std=self.noise_std,
         )
         return x_t, t.view(-1, 1)
+
+    def __repr__(self):
+        return (
+            f"Diffusion(\n"
+            f"beta_schedule={self.beta_schedule},\n"
+            f"beta_start={self.beta_start},\n"
+            f"beta_end={self.beta_end},\n"
+            f"t_min={self.t_min},\n"
+            f"t_max={self.t_max},\n"
+            f"noise_std={self.noise_std},\n"
+            f"aug={self.aug_type},\n"
+            f"ada_maxp={self.ada_maxp},\n"
+            f"ts_dist={self.ts_dist},\n"
+            f"reverse={self.reverse}"
+            ")"
+        )

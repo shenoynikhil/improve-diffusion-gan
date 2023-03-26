@@ -7,7 +7,7 @@ generator:
 discriminator:
   _target_: src.models.sn_gan.Discriminator
   channels: 1
-lr: 2e-4
+lr: 0.0001
 output_dir: ${paths.output_dir}
-loss_type: dcgan
-disc_iters: 1
+loss_type: wasserstein
+disc_iters: 5
