@@ -206,16 +206,16 @@ class Diffusion(torch.nn.Module):
 
     def __repr__(self):
         return (
-            f"Diffusion("
-            f"beta_schedule={self.beta_schedule},"
-            f"beta_start={self.beta_start},"
-            f"beta_end={self.beta_end},"
-            f"t_min={self.t_min},"
-            f"t_max={self.t_max},"
-            f"noise_std={self.noise_std},"
-            f"aug={self.aug_type},"
-            f"ada_maxp={self.ada_maxp},"
-            f"ts_dist={self.ts_dist},"
+            f"Diffusion(\n"
+            f"beta_schedule={self.beta_schedule},\n"
+            f"beta_start={self.beta_start},\n"
+            f"beta_end={self.beta_end},\n"
+            f"t_min={self.t_min},\n"
+            f"t_max={self.t_max},\n"
+            f"noise_std={self.noise_std},\n"
+            f"aug={self.aug_type},\n"
+            f"ada_maxp={self.ada_maxp},\n"
+            f"ts_dist={self.ts_dist},\n"
             f"reverse={self.reverse}"
             ")"
         )
