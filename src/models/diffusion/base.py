@@ -111,6 +111,7 @@ class Diffusion(torch.nn.Module):
         aug="no",
         ada_maxp=None,
         ts_dist="priority",
+        reverse=False
     ):
         super().__init__()
         self.p = 0.0  # Overall multiplier for augmentation probability.
@@ -124,6 +125,7 @@ class Diffusion(torch.nn.Module):
         self.t_max = t_max
         self.t_add = int(t_max - t_min)
         self.ts_dist = ts_dist
+        self.reverse = reverse
 
         # Image-space corruptions.
         self.noise_std = float(noise_std)  # Standard deviation of additive RGB noise.
@@ -150,6 +152,10 @@ class Diffusion(torch.nn.Module):
 
         alphas = self.alphas = 1.0 - betas
         alphas_cumprod = torch.cat([torch.tensor([1.0]), alphas.cumprod(dim=0)])
+
+        if self.reverse:
+            alphas_cumprod = 1 - alphas_cumprod
+            
         self.alphas_bar_sqrt = torch.sqrt(alphas_cumprod)
         self.one_minus_alphas_bar_sqrt = torch.sqrt(1 - alphas_cumprod)
 
