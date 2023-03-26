@@ -170,7 +170,9 @@ class VanillaGAN(LightningModule):
         top_k_critic: int = 0,
         # Diffusion Module and related args
         diffusion_module: Diffusion = None,
-        ada_interval: int = 4,
+        ada_interval: int = 4,  # from original code
+        ada_target: float = 0.6,  # from original code
+        ada_kimg: int = 100,  # from original code
     ):
         super().__init__()
         self.generator = generator
@@ -194,7 +196,10 @@ class VanillaGAN(LightningModule):
             assert isinstance(
                 self.diffusion_module, Diffusion
             ), "diffusion_module must be an instance of Diffusion"
+
             self.ada_interval = ada_interval
+            self.ada_target = ada_target
+            self.ada_kimg = ada_kimg
 
     def configure_optimizers(self):
         """Configure optimizers for generator and discriminator"""
@@ -228,6 +233,29 @@ class VanillaGAN(LightningModule):
 
         return F.binary_cross_entropy_with_logits(y_hat, y)
 
+    def perform_diffusion_ops(self, imgs, gen_imgs, batch_idx):
+        """Perform diffusion operations"""
+        batch_size = len(imgs)
+
+        t = self.diffusion_module.sample_t(batch_size)
+        imgs, _ = self.diffusion_module(imgs, t)
+        gen_imgs, _ = self.diffusion_module(gen_imgs, t)
+
+        batch_size = len(imgs)
+
+        if batch_idx % self.ada_interval == 0:  # check update_T condition
+            with torch.no_grad():
+                C = batch_size * self.ada_interval / (self.ada_kimg * 1000)  # from original code
+                adjust = (
+                    (torch.sign(self.discriminator(imgs).mean() - self.ada_target) * C)
+                    .cpu()
+                    .numpy()
+                )
+                self.diffusion_module.p = (self.diffusion_module.p + adjust).clip(min=0, max=1.0)
+                self.diffusion_module.update_T()
+
+        return imgs, gen_imgs
+
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, _ = batch
         batch_size = imgs.size(0)
@@ -247,25 +275,7 @@ class VanillaGAN(LightningModule):
 
         # Peform diffusion if module present
         if self.diffusion_module is not None:
-            t = self.diffusion_module.sample_t(batch_size)
-            imgs, _ = self.diffusion_module(imgs, t)
-            gen_imgs, _ = self.diffusion_module(gen_imgs, t)
-
-            ada_interval = 4  # from original code
-            ada_target = 0.6  # from original code
-            ada_kimg = 100  # from original code
-            batch_size = len(imgs)
-
-            if batch_idx % ada_interval == 0:  # check update_T condition
-                with torch.no_grad():
-                    C = batch_size * ada_interval / (ada_kimg * 1000)  # from original code
-                    adjust = (
-                        (torch.sign(self.discriminator(imgs).mean() - ada_target) * C).cpu().numpy()
-                    )
-                    self.diffusion_module.p = (self.diffusion_module.p + adjust).clip(
-                        min=0, max=1.0
-                    )
-                    self.diffusion_module.update_T()
+            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx)
 
         # train generator
         if optimizer_idx == 0:

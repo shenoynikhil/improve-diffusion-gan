@@ -6,7 +6,6 @@ from typing import List
 import torch
 import torch.nn as nn
 
-from .diffusion import Diffusion
 from .utils import compute_metrics_no_aux
 from .vanilla_gan import VanillaGAN
 
@@ -134,30 +133,8 @@ class Discriminator(torch.nn.Module):
 class WGAN_GP(VanillaGAN):
     """WGAN_GP Network"""
 
-    def __init__(
-        self,
-        generator: Generator,
-        discriminator: Discriminator,
-        output_dir: str,
-        lr: float = 0.0001,
-        disc_iters: int = 5,
-        lambda_term: int = 10,
-        # top_k training
-        top_k_critic: int = 0,
-        # Diffusion Module and related args
-        diffusion_module: Diffusion = None,
-        ada_interval: int = 4,
-    ):
-        super().__init__(
-            generator,
-            discriminator,
-            output_dir,
-            lr,
-            disc_iters,
-            top_k_critic,
-            diffusion_module,
-            ada_interval,
-        )
+    def __init__(self, lambda_term: int = 10, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.lambda_term = lambda_term
         self.channels = self.generator.channels
 
@@ -179,23 +156,7 @@ class WGAN_GP(VanillaGAN):
         step_output = {"gen_imgs": gen_imgs.detach().cpu()}
 
         if self.diffusion_module is not None:
-            # Diffuse into both real and generated images
-            t = self.diffusion_module.sample_t(batch_size)
-            imgs, _ = self.diffusion_module(imgs, t)
-            gen_imgs, _ = self.diffusion_module(gen_imgs, t)
-            
-            ada_interval = 4 # from original code
-            ada_target = 0.6 # from original code
-            ada_kimg = 100   # from original code
-            batch_size = len(imgs)
-
-            if batch_idx%ada_interval == 0:  # check update_T condition
-                with torch.no_grad():
-                    C = batch_size*ada_interval/(ada_kimg*1000) # from original code
-                    adjust = (torch.sign(self.discriminator(imgs).mean() - ada_target)*C).cpu().numpy()
-                    self.diffusion_module.p= (self.diffusion_module.p + adjust).clip(min=0, max=1.)
-                    self.diffusion_module.update_T()
-
+            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx)
 
         # train generator
         if optimizer_idx == 0:
