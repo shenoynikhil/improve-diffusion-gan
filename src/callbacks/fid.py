@@ -4,6 +4,7 @@ from typing import Any
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.types import STEP_OUTPUT
+from torchmetrics import Metric
 from torchmetrics.image.fid import FrechetInceptionDistance
 
 
@@ -15,7 +16,7 @@ def normalize(x):
 class FID(pl.Callback):
     """Callback to Compute the Frechet Inception Distance between real and generated images"""
 
-    def __init__(self, feature: int = 64):
+    def __init__(self, feature: int = 2048):
         super().__init__()
         self.feature = feature
         assert self.feature in [
@@ -26,7 +27,7 @@ class FID(pl.Callback):
         ], f"Feature size {feature} inputted is not supported"
 
         # initialize metric
-        self.fid = FrechetInceptionDistance(feature=self.feature, reset_real_features=False)
+        self.fid: Metric = FrechetInceptionDistance(feature=self.feature, reset_real_features=False)
 
     def on_train_batch_end(
         self,
@@ -45,10 +46,14 @@ class FID(pl.Callback):
         gen_imgs = normalize(gen_imgs)
         real_imgs = normalize(real_imgs)
 
+        # move to correct device
+        device = pl_module.device
+        self.fid.to(device=device)
+
         # generate two slightly overlapping image intensity distributions
-        self.fid.update(real_imgs, real=True)
-        self.fid.update(gen_imgs, real=False)
+        self.fid.update(real_imgs.to(device), real=True)
+        self.fid.update(gen_imgs.to(device), real=False)
 
     def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         """Compute FID Score at the end of epoch"""
-        pl_module.log("epoch-fid", self.fid.compute())
+        pl_module.log("epoch-fid", self.fid.compute(), on_epoch=True, on_step=False)
