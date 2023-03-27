@@ -16,7 +16,7 @@ def normalize(x):
 class FID(pl.Callback):
     """Callback to Compute the Frechet Inception Distance between real and generated images"""
 
-    def __init__(self, feature: int = 2048):
+    def __init__(self, feature: int = 2048, every_n_epochs: int = 1):
         super().__init__()
         self.feature = feature
         assert self.feature in [
@@ -25,7 +25,7 @@ class FID(pl.Callback):
             768,
             2048,
         ], f"Feature size {feature} inputted is not supported"
-
+        self.every_n_epochs = every_n_epochs
         # initialize metric
         self.fid: Metric = FrechetInceptionDistance(feature=self.feature, reset_real_features=False)
 
@@ -38,6 +38,10 @@ class FID(pl.Callback):
         batch_idx: int,
     ) -> None:
         """Compute FID Score at the end of epoch"""
+        # only compute FID every n epochs
+        if (trainer.current_epoch + 1) % self.every_n_epochs != 0:
+            return
+
         # retrieve generated and real images from outputs, batch respectively
         gen_imgs = outputs[0]["gen_imgs"].detach()
         real_imgs = batch[0].detach()
@@ -56,4 +60,8 @@ class FID(pl.Callback):
 
     def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         """Compute FID Score at the end of epoch"""
+        # only compute FID every n epochs
+        if (trainer.current_epoch + 1) % self.every_n_epochs != 0:
+            return
+
         pl_module.log("epoch-fid", self.fid.compute(), on_epoch=True, on_step=False)

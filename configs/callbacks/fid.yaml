@@ -1,2 +1,4 @@
 fid:
   _target_: src.callbacks.FID
+  every_n_epochs: 10
+  feature: 2048
