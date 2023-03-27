@@ -1,18 +1,12 @@
-"""LightningModule to setup ACGAN setup. Contains instructions about
-- Generator and Discriminator
-- Optimizer to be used (currently hardcoded)
-- training_step given batch and optimizer_idx (whether to optimize generator or discriminator)
-"""
-
-import os
+"""Vanilla_ACGAN Implementation built on top of VanillaGAN"""
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pytorch_lightning import LightningModule
 
 from .diffusion import Diffusion
-from .utils import compute_metrics, sample_image, weights_init_normal
+from .utils import compute_metrics, weights_init_normal
+from .vanilla_gan import VanillaGAN
 
 
 class ConditionalGenerator(nn.Module):
@@ -112,7 +106,7 @@ class ConditionalDiscriminator(nn.Module):
         return validity, label
 
 
-class Vanilla_ACGAN(LightningModule):
+class Vanilla_ACGAN(VanillaGAN):
     """ACGAN Implementation using ACGAN
 
     Parameters
@@ -132,6 +126,7 @@ class Vanilla_ACGAN(LightningModule):
         output_dir: str,
         lr: float = 0.0001,
         disc_iters: int = 1,
+        lambda_aux_loss: float = 0.5,
         # top_k training
         top_k_critic: int = 0,
         # Diffusion Module and related args
@@ -144,6 +139,7 @@ class Vanilla_ACGAN(LightningModule):
         self.generator = generator
         self.discriminator = discriminator
         self.disc_iters = disc_iters
+        self.lambda_aux_loss = lambda_aux_loss
 
         assert hasattr(generator, "latent_dim") and hasattr(
             self.generator, "n_classes"
@@ -170,33 +166,8 @@ class Vanilla_ACGAN(LightningModule):
             self.ada_target = ada_target
             self.ada_kimg = ada_kimg
 
-    def configure_optimizers(self):
-        """Configure optimizers for generator and discriminator"""
-        # instantiate ADAM optimizer
-        # TODO: make this more flexible
-        optimizer_g = torch.optim.Adam(
-            self.generator.parameters(),
-            lr=self.lr,
-        )
-        optimizer_d = torch.optim.Adam(
-            self.discriminator.parameters(),
-            lr=self.lr,
-        )
-        return {"optimizer": optimizer_g, "frequency": 1}, {
-            "optimizer": optimizer_d,
-            "frequency": self.disc_iters,
-        }
-
     def forward(self, z, labels):
         return self.generator(z, labels)
-
-    def adversarial_loss(self, y_hat, y):
-        """Binary Cross Entropy loss between y_hat and y"""
-        return F.binary_cross_entropy_with_logits(y_hat, y)
-
-    def auxiliary_loss(self, y_hat, y):
-        """Cross Entropy loss between y_hat and y"""
-        return F.cross_entropy(y_hat, y)
 
     def generator_loss(self, gen_img_scores, gen_label_preds, real_labels):
         """Generator loss"""
@@ -208,11 +179,13 @@ class Vanilla_ACGAN(LightningModule):
             valid_top_k, indices = torch.topk(gen_img_scores, self.initial_k, dim=0)
             return F.binary_cross_entropy_with_logits(
                 valid_top_k, valid[indices.squeeze()]
-            ) + F.cross_entropy(gen_label_preds[indices.squeeze()], real_labels[indices.squeeze()])
+            ) + self.lambda_aux_loss * F.cross_entropy(
+                gen_label_preds[indices.squeeze()], real_labels[indices.squeeze()]
+            )
 
         return (
             F.binary_cross_entropy_with_logits(gen_img_scores, valid)
-            + F.cross_entropy(gen_label_preds, real_labels)
+            + self.lambda_aux_loss * F.cross_entropy(gen_label_preds, real_labels)
         ) / 2
 
     def discriminator_loss(
@@ -241,33 +214,6 @@ class Vanilla_ACGAN(LightningModule):
             # gen label scores loss
             F.cross_entropy(gen_label_scores, gen_labels)
         ) / 4
-
-    def perform_diffusion_ops(self, imgs, gen_imgs, batch_idx):
-        """Perform diffusion operations"""
-        batch_size = len(imgs)
-
-        # sample a time step
-        t = self.diffusion_module.sample_t(batch_size)
-
-        # noise images using noise with variance based on time step
-        imgs, _ = self.diffusion_module(imgs, t)
-        gen_imgs, _ = self.diffusion_module(gen_imgs, t)
-
-        # check update_T condition
-        if batch_idx % self.ada_interval == 0:
-            # perform non-training operation under no_grad()
-            with torch.no_grad():
-                # from original code
-                C = batch_size * self.ada_interval / (self.ada_kimg * 1000)
-                adjust = (
-                    (torch.sign(self.discriminator(imgs).mean() - self.ada_target) * C)
-                    .cpu()
-                    .numpy()
-                )
-                self.diffusion_module.p = (self.diffusion_module.p + adjust).clip(min=0, max=1.0)
-                self.diffusion_module.update_T()
-
-        return imgs, gen_imgs
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, real_labels = batch
@@ -308,16 +254,16 @@ class Vanilla_ACGAN(LightningModule):
         # train discriminator
         if optimizer_idx == 1:
             # Loss for real images
-            real_imgs_scores, real_label_scores = self.discriminator(imgs)
+            real_img_scores, real_label_scores = self.discriminator(imgs)
             gen_img_scores, gen_label_scores = self.discriminator(gen_imgs)
 
             # Compute discriminator loss
             d_loss = self.discriminator_loss(
-                real_imgs_scores,
+                real_img_scores,
                 gen_img_scores,
                 real_label_scores,
                 gen_label_scores,
-                gen_imgs,
+                real_labels,
                 gen_labels,
             )
 
@@ -326,7 +272,7 @@ class Vanilla_ACGAN(LightningModule):
 
             # compute metrics
             metrics = compute_metrics(
-                real_imgs_scores,
+                real_img_scores,
                 gen_img_scores,
                 real_label_scores,
                 gen_label_scores,
@@ -334,6 +280,8 @@ class Vanilla_ACGAN(LightningModule):
                 fake,
                 real_labels,
                 gen_labels,
+                apply_sigmoid=True,
+                multi_label=True,
             )
 
             self.log_dict(metrics, prog_bar=True)
@@ -342,28 +290,6 @@ class Vanilla_ACGAN(LightningModule):
             step_output["loss"] = d_loss
 
             return step_output
-
-    def on_train_epoch_end(self, n_epoch_render=10):
-        """At the end of training epoch, generate synthetic images"""
-        # Get labels ranging from 0 to n_classes for n rows, do this every 10 epochs
-        path = os.path.join(self.output_dir, "gen_images")
-        os.makedirs(path, exist_ok=True)
-        if self.current_epoch % n_epoch_render == 0:
-            gen_imgs = self.generate_images(batch_size=100)
-            sample_image(
-                gen_imgs=gen_imgs,
-                n_row=10,
-                epochs_done=self.current_epoch,
-                output_dir=path,
-            )
-
-        # update self.initial_k if needed
-        if self.top_k_critic > 0:
-            # 75% of batch size is the minimum value possible
-            min_value_possible = int(0.75 * self.trainer.datamodule.batch_size)
-            self.initial_k = max(min_value_possible, int(0.99 * self.initial_k))
-            # log value of k
-            self.log("k", self.initial_k, prog_bar=True)
 
     def generate_images(self, batch_size: int):
         n_cls = self.n_classes

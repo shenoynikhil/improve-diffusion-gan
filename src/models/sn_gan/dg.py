@@ -3,6 +3,7 @@ from typing import List
 import torch.nn as nn
 
 from .snconv2d import SNConv2d
+from .snlinear import SNLinear
 
 
 class Generator(nn.Module):
@@ -70,7 +71,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    """Discriminator for WACGAN-GP"""
+    """Discriminator for SNGAN-GP"""
 
     def __init__(self, channels: int, conv_channel_list: List[int] = [128, 256, 512]):
         """Initialize the Discriminator
@@ -114,17 +115,9 @@ class Discriminator(nn.Module):
             nn.AdaptiveAvgPool2d((1, 1)),
         )
         # output of main module --> State (1024x4x4)
-        self.fc = nn.Sequential(nn.Linear(channel_list[-1], 128), nn.LeakyReLU(0.2, inplace=True))
-
-        self.output = nn.Linear(128, 1)
+        self.fc = nn.Sequential(SNLinear(channel_list[-1], 1))
 
     def forward(self, x):
         x = self.main_module(x)
         x = x.view(x.size()[0], -1).flatten(1)
-        x = self.fc(x)
-        return self.output(x)
-
-    def feature_extraction(self, x):
-        # Use discriminator for feature extraction then flatten to vector of 16384
-        x = self.main_module(x)
-        return x.view(-1, 1024 * 4 * 4)
+        return self.fc(x)
