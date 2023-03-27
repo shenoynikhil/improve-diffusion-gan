@@ -1,27 +1,32 @@
-"""LightningModule to setup ACGAN setup. Contains instructions about
-- Generator and Discriminator
-- Optimizer to be used (currently hardcoded)
-- training_step given batch and optimizer_idx (whether to optimize generator or discriminator)
-"""
-
-import os
-from collections import defaultdict
+"""Vanilla_ACGAN Implementation built on top of VanillaGAN"""
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pytorch_lightning import LightningModule
 
-from .utils import compute_metrics, sample_image, weights_init_normal
+from .utils import compute_metrics, weights_init_normal
+from .vanilla_gan import VanillaGAN
 
 
 class ConditionalGenerator(nn.Module):
-    def __init__(self, n_classes: int, img_size: int, channels: int, latent_dim: int = 100):
+    """Conditional Generator
+    Generates images given a latent vector and a label
+    """
+
+    def __init__(
+        self,
+        latent_dim: int,
+        channels: int,
+        img_size: int,
+        n_classes: int,
+    ):
         super(ConditionalGenerator, self).__init__()
+        assert img_size == 32 or img_size == 28, "Final size must be 32 or 28"
         self.n_classes = n_classes
         self.latent_dim = latent_dim
         self.channels = channels
 
+        # create label embedding
         self.label_emb = nn.Embedding(n_classes, latent_dim)
 
         self.init_size = img_size // 4  # Initial size before upsampling
@@ -53,6 +58,12 @@ class ConditionalGenerator(nn.Module):
 
 
 class ConditionalDiscriminator(nn.Module):
+    """Conditional Discriminator
+    Critic that takes an image and a label as input
+    and provides a real or fake image prediction (2 classes)
+    and a label prediction (n_classes)
+    """
+
     def __init__(self, channels: int, img_size: int, n_classes: int):
         super(ConditionalDiscriminator, self).__init__()
 
@@ -78,8 +89,8 @@ class ConditionalDiscriminator(nn.Module):
         ds_size = img_size // 2**4
 
         # Output layers
-        self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size**2, 1), nn.Sigmoid())
-        self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size**2, n_classes), nn.Softmax(dim=-1))
+        self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size**2, 1))
+        self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size**2, n_classes))
 
         # intialize with normal weights
         self.apply(weights_init_normal)
@@ -94,7 +105,7 @@ class ConditionalDiscriminator(nn.Module):
         return validity, label
 
 
-class ACGAN(LightningModule):
+class Vanilla_ACGAN(VanillaGAN):
     """ACGAN Implementation using ACGAN
 
     Parameters
@@ -107,51 +118,67 @@ class ACGAN(LightningModule):
         Learning rate for the optimizer
     """
 
-    def __init__(self, generator, discriminator, lr, output_dir: str):
-        super().__init__()
-        self.generator = generator
-        self.discriminator = discriminator
-
-        assert hasattr(generator, "latent_dim") and hasattr(
-            self.generator, "n_classes"
-        ), "Generator must have latent_dim attribute and n_classes attribute"
-        self.latent_dim = generator.latent_dim
-        self.n_classes = generator.n_classes
-
-        # check output dir for saving generated images
-        self.output_dir = output_dir
-
-        self.lr = lr
-
-        self.storage = defaultdict(list)
-
-    def configure_optimizers(self):
-        """Configure optimizers for generator and discriminator"""
-        # instantiate ADAM optimizer
-        # TODO: make this more flexible
-        optimizer_g = torch.optim.Adam(
-            self.generator.parameters(),
-            lr=self.lr,
-        )
-        optimizer_d = torch.optim.Adam(
-            self.discriminator.parameters(),
-            lr=self.lr,
-        )
-        return [optimizer_g, optimizer_d], []
+    def __init__(
+        self,
+        lambda_aux_loss: float = 0.5,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        assert hasattr(self.generator, "n_classes"), "Generator must have n_classes attribute"
+        self.n_classes = self.generator.n_classes
+        self.lambda_aux_loss = lambda_aux_loss
 
     def forward(self, z, labels):
         return self.generator(z, labels)
 
-    def adversarial_loss(self, y_hat, y):
-        """Binary Cross Entropy loss between y_hat and y"""
-        return F.binary_cross_entropy(y_hat, y)
+    def generator_loss(self, gen_img_scores, gen_label_preds, real_labels):
+        """Generator loss"""
+        device = gen_img_scores.device
+        valid = torch.ones(gen_img_scores.size(0), 1).to(device)
 
-    def auxiliary_loss(self, y_hat, y):
-        """Cross Entropy loss between y_hat and y"""
-        return F.cross_entropy(y_hat, y)
+        # only consider top-k critic scores for loss if top_k_critic > 0
+        if self.top_k_critic > 0:
+            valid_top_k, indices = torch.topk(gen_img_scores, self.initial_k, dim=0)
+            img_loss = F.binary_cross_entropy_with_logits(valid_top_k, valid[indices.squeeze()])
+            aux_loss = F.cross_entropy(
+                gen_label_preds[indices.squeeze()], real_labels[indices.squeeze()]
+            )
+        else:
+            img_loss = F.binary_cross_entropy_with_logits(gen_img_scores, valid)
+            aux_loss = F.cross_entropy(gen_label_preds, real_labels)
+
+        return img_loss + self.lambda_aux_loss * aux_loss
+
+    def discriminator_loss(
+        self,
+        real_img_scores,
+        gen_img_scores,
+        real_label_scores,
+        gen_label_scores,
+        real_labels,
+        gen_labels,
+    ):
+        device = real_img_scores.device
+        real = torch.ones(real_img_scores.size(0), 1).to(device)
+        gen = torch.zeros(gen_img_scores.size(0), 1).to(device)
+
+        return (
+            # real img scores loss
+            F.binary_cross_entropy_with_logits(real_img_scores, real)
+            +
+            # real label scores loss
+            F.cross_entropy(real_label_scores, real_labels)
+            +
+            # gen img scores loss
+            F.binary_cross_entropy_with_logits(gen_img_scores, gen)
+            +
+            # gen label scores loss
+            F.cross_entropy(gen_label_scores, gen_labels)
+        ) / 4
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        imgs, labels = batch
+        imgs, real_labels = batch
         batch_size = imgs.size(0)
 
         # sets to same device as imgs
@@ -160,7 +187,7 @@ class ACGAN(LightningModule):
 
         # generate noise
         z = torch.normal(0, 1, (batch_size, self.latent_dim)).type_as(imgs)
-        gen_labels = torch.randint(0, self.n_classes, (batch_size,)).type_as(labels)
+        gen_labels = torch.randint(0, self.n_classes, (batch_size,)).type_as(real_labels)
 
         # Generate a batch of images
         gen_imgs = self.generator(z, gen_labels)
@@ -168,16 +195,17 @@ class ACGAN(LightningModule):
         # construct step output
         step_output = {"gen_imgs": gen_imgs}
 
+        # Peform diffusion if module present
+        if self.diffusion_module is not None:
+            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx, auxillary=True)
+
         # train generator
         if optimizer_idx == 0:
             # Loss measures generator's ability to fool the discriminator
-            validity, pred_label = self.discriminator(gen_imgs)
-            g_loss = (
-                self.adversarial_loss(validity, valid) + self.auxiliary_loss(pred_label, gen_labels)
-            ) / 2
+            gen_img_scores, pred_labels = self.discriminator(gen_imgs)
+            g_loss = self.generator_loss(gen_img_scores, pred_labels, gen_labels)
 
-            # update storage and logs with generator loss
-            self.storage["g_loss"].append(g_loss)
+            # log generator loss
             self.log("g_loss", g_loss, prog_bar=True)
 
             # update step_output
@@ -188,42 +216,35 @@ class ACGAN(LightningModule):
         # train discriminator
         if optimizer_idx == 1:
             # Loss for real images
-            real_pred, real_aux = self.discriminator(imgs)
-            d_real_loss = (
-                self.adversarial_loss(real_pred, valid) + self.auxiliary_loss(real_aux, labels)
-            ) / 2
-            # update storage with discriminator scores on real images
-            self.storage["real_scores"].append(torch.mean(real_pred.data.cpu()))
+            real_img_scores, real_label_scores = self.discriminator(imgs)
+            gen_img_scores, gen_label_scores = self.discriminator(gen_imgs)
 
-            fake_pred, fake_aux = self.discriminator(gen_imgs)
-            d_fake_loss = (
-                self.adversarial_loss(fake_pred, fake) + self.auxiliary_loss(fake_aux, gen_labels)
-            ) / 2
-            # update storage with fake scores
-            self.storage["fake_scores"].append(torch.mean(fake_pred.data.cpu()))
+            # Compute discriminator loss
+            d_loss = self.discriminator_loss(
+                real_img_scores,
+                gen_img_scores,
+                real_label_scores,
+                gen_label_scores,
+                real_labels,
+                gen_labels,
+            )
 
-            # Total discriminator loss
-            d_loss = (d_real_loss + d_fake_loss) / 2
-
-            # update storage and logs with discriminator loss
-            self.storage["d_loss"].append(d_loss)
+            # log discriminator loss
             self.log("d_loss", d_loss, prog_bar=True)
 
             # compute metrics
             metrics = compute_metrics(
-                real_pred,
-                fake_pred,
-                real_aux,
-                fake_aux,
+                real_img_scores,
+                gen_img_scores,
+                real_label_scores,
+                gen_label_scores,
                 valid,
                 fake,
-                labels,
+                real_labels,
                 gen_labels,
+                apply_sigmoid=True,
+                multi_label=True,
             )
-
-            # update storage with metrics
-            for metric, metric_val in metrics.items():
-                self.storage[metric].append(metric_val)
 
             self.log_dict(metrics, prog_bar=True)
 
@@ -231,20 +252,6 @@ class ACGAN(LightningModule):
             step_output["loss"] = d_loss
 
             return step_output
-
-    def on_train_epoch_end(self, n_epoch_render=10):
-        """At the end of training epoch, generate synthetic images"""
-        # Get labels ranging from 0 to n_classes for n rows, do this every 10 epochs
-        path = os.path.join(self.output_dir, "gen_images")
-        os.makedirs(path, exist_ok=True)
-        if self.current_epoch % n_epoch_render == 0:
-            gen_imgs = self.generate_images(batch_size=100)
-            sample_image(
-                gen_imgs=gen_imgs,
-                n_row=10,
-                epochs_done=self.current_epoch,
-                output_dir=path,
-            )
 
     def generate_images(self, batch_size: int):
         n_cls = self.n_classes

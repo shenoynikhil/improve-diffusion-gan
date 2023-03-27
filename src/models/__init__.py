@@ -1,15 +1,18 @@
-from src.models.acgan import ACGAN, ConditionalDiscriminator, ConditionalGenerator
-from src.models.sn_gan import SpectralNormGAN
-from src.models.vanilla_gan import Discriminator, Generator, VanillaGAN
-from src.models.wgan_gp import WGAN_GP
+from .sn_gan import SpectralNormACGAN, SpectralNormGAN
+from .vanilla_acgan import ConditionalDiscriminator, ConditionalGenerator, Vanilla_ACGAN
+from .vanilla_gan import Discriminator, Generator, VanillaGAN
+from .wacgan_gp import WACGAN_GP
+from .wgan_gp import WGAN_GP
 
 __all__ = [
     "Discriminator",
     "Generator",
     "ConditionalGenerator",
     "ConditionalDiscriminator",
+    "WACGAN_GP",
     "WGAN_GP",
-    "ACGAN",
+    "Vanilla_ACGAN",
+    "SpectralNormACGAN",
     "SpectralNormGAN",
     "VanillaGAN",
 ]

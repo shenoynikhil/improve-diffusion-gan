@@ -77,7 +77,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    """Discriminator for WACGAN-GP"""
+    """Discriminator for WGAN-GP"""
 
     def __init__(self, channels: int, conv_channel_list: List[int] = [128, 256, 512]):
         """Initialize the Discriminator
@@ -228,12 +228,12 @@ class VanillaGAN(LightningModule):
     def generator_loss(self, y_hat, y):
         """Binary Cross Entropy loss with Logits between y_hat and y"""
         if self.top_k_critic > 0:
-            valid_top_k, indices = torch.topk(y_hat, self.top_k_critic, dim=0)
+            valid_top_k, indices = torch.topk(y_hat, self.initial_k, dim=0)
             return F.binary_cross_entropy_with_logits(valid_top_k, y[indices.squeeze()])
 
         return F.binary_cross_entropy_with_logits(y_hat, y)
 
-    def perform_diffusion_ops(self, imgs, gen_imgs, batch_idx):
+    def perform_diffusion_ops(self, imgs, gen_imgs, batch_idx, auxillary: bool = False):
         """Perform diffusion operations"""
         batch_size = len(imgs)
 
@@ -250,11 +250,9 @@ class VanillaGAN(LightningModule):
             with torch.no_grad():
                 # from original code
                 C = batch_size * self.ada_interval / (self.ada_kimg * 1000)
-                adjust = (
-                    (torch.sign(self.discriminator(imgs).mean() - self.ada_target) * C)
-                    .cpu()
-                    .numpy()
-                )
+                out = self.discriminator(imgs)
+                out = out if not auxillary else out[0]  # for auxillary discriminator
+                adjust = (torch.sign(out.mean() - self.ada_target) * C).cpu().numpy()
                 self.diffusion_module.p = (self.diffusion_module.p + adjust).clip(min=0, max=1.0)
                 self.diffusion_module.update_T()
 
@@ -315,6 +313,7 @@ class VanillaGAN(LightningModule):
                 fake_pred,
                 valid,
                 fake,
+                apply_sigmoid=True,
             )
 
             self.log_dict(metrics, prog_bar=True)

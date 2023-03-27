@@ -1,0 +1,7 @@
+# @package _global_
+
+task_name: cifar10_wacgan_gp
+
+defaults:
+  - override /datamodule: cifar10.yaml
+  - override /model: wacgan_cifar10.yaml

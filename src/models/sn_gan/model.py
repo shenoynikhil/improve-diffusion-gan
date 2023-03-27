@@ -31,11 +31,11 @@ class SpectralNormGAN(VanillaGAN):
         """Binary Cross Entropy loss between y_hat and y"""
         if self.loss_type == "wasserstein":
             if self.top_k_critic > 0:
-                y_hat, _ = torch.topk(y_hat, self.top_k_critic, dim=0)
+                y_hat, _ = torch.topk(y_hat, self.initial_k, dim=0)
             return -torch.mean(y_hat)
         else:
             if self.top_k_critic > 0:
-                y_hat, _ = torch.topk(y_hat, self.top_k_critic, dim=0)
+                y_hat, _ = torch.topk(y_hat, self.initial_k, dim=0)
                 y = torch.ones_like(y_hat).to(y_hat.device)
             return F.binary_cross_entropy_with_logits(y_hat, y)
 
@@ -100,6 +100,7 @@ class SpectralNormGAN(VanillaGAN):
                 fake_pred,
                 valid,
                 fake,
+                apply_sigmoid=True,
             )
 
             self.log_dict(metrics, prog_bar=True)

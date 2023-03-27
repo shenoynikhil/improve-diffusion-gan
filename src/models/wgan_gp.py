@@ -1,4 +1,4 @@
-"""LightningModule to setup WACGAN setup.
+"""LightningModule to setup WGAN_GP setup.
 """
 
 from typing import List
@@ -75,7 +75,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(torch.nn.Module):
-    """Discriminator for WACGAN-GP"""
+    """Discriminator for WGAN-GP"""
 
     def __init__(self, channels: int, conv_channel_list: List[int] = [128, 256, 512]):
         """Initialize the Discriminator
@@ -139,7 +139,7 @@ class WGAN_GP(VanillaGAN):
         self.channels = self.generator.channels
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        """Describes the Training Step / Forward Pass of a WACGAN with Gradient Clipping"""
+        """Describes the Training Step / Forward Pass of a WGAN with Gradient Penalty"""
         imgs, _ = batch
         batch_size = imgs.size(0)
 
