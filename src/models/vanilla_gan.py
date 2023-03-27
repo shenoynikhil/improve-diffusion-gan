@@ -77,7 +77,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    """Discriminator for WACGAN-GP"""
+    """Discriminator for WGAN-GP"""
 
     def __init__(self, channels: int, conv_channel_list: List[int] = [128, 256, 512]):
         """Initialize the Discriminator
@@ -228,7 +228,7 @@ class VanillaGAN(LightningModule):
     def generator_loss(self, y_hat, y):
         """Binary Cross Entropy loss with Logits between y_hat and y"""
         if self.top_k_critic > 0:
-            valid_top_k, indices = torch.topk(y_hat, self.top_k_critic, dim=0)
+            valid_top_k, indices = torch.topk(y_hat, self.initial_k, dim=0)
             return F.binary_cross_entropy_with_logits(valid_top_k, y[indices.squeeze()])
 
         return F.binary_cross_entropy_with_logits(y_hat, y)
