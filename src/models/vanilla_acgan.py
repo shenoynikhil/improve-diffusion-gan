@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .diffusion import Diffusion
 from .utils import compute_metrics, weights_init_normal
 from .vanilla_gan import VanillaGAN
 
@@ -121,50 +120,14 @@ class Vanilla_ACGAN(VanillaGAN):
 
     def __init__(
         self,
-        generator: nn.Module,
-        discriminator: nn.Module,
-        output_dir: str,
-        lr: float = 0.0001,
-        disc_iters: int = 1,
         lambda_aux_loss: float = 0.5,
-        # top_k training
-        top_k_critic: int = 0,
-        # Diffusion Module and related args
-        diffusion_module: Diffusion = None,
-        ada_interval: int = 4,  # from original code
-        ada_target: float = 0.6,  # from original code
-        ada_kimg: int = 100,  # from original code
+        *args,
+        **kwargs,
     ):
-        super().__init__()
-        self.generator = generator
-        self.discriminator = discriminator
-        self.disc_iters = disc_iters
+        super().__init__(*args, **kwargs)
+        assert hasattr(self.generator, "n_classes"), "Generator must have n_classes attribute"
+        self.n_classes = self.generator.n_classes
         self.lambda_aux_loss = lambda_aux_loss
-
-        assert hasattr(generator, "latent_dim") and hasattr(
-            self.generator, "n_classes"
-        ), "Generator must have latent_dim attribute and n_classes attribute"
-        self.latent_dim = generator.latent_dim
-        self.n_classes = generator.n_classes
-
-        # check output dir for saving generated images
-        self.output_dir = output_dir
-        self.lr = lr
-
-        # Modification for top-K training
-        self.top_k_critic = top_k_critic
-        self.initial_k = top_k_critic  # will be reduced as training progresses
-
-        # Diffusion Module
-        self.diffusion_module = diffusion_module
-        if self.diffusion_module is not None:
-            assert isinstance(
-                self.diffusion_module, Diffusion
-            ), "diffusion_module must be an instance of Diffusion"
-
-            self.ada_interval = ada_interval
-            self.ada_target = ada_target
-            self.ada_kimg = ada_kimg
 
     def forward(self, z, labels):
         return self.generator(z, labels)
@@ -177,16 +140,15 @@ class Vanilla_ACGAN(VanillaGAN):
         # only consider top-k critic scores for loss if top_k_critic > 0
         if self.top_k_critic > 0:
             valid_top_k, indices = torch.topk(gen_img_scores, self.initial_k, dim=0)
-            return F.binary_cross_entropy_with_logits(
-                valid_top_k, valid[indices.squeeze()]
-            ) + self.lambda_aux_loss * F.cross_entropy(
+            img_loss = F.binary_cross_entropy_with_logits(valid_top_k, valid[indices.squeeze()])
+            aux_loss = F.cross_entropy(
                 gen_label_preds[indices.squeeze()], real_labels[indices.squeeze()]
             )
+        else:
+            img_loss = F.binary_cross_entropy_with_logits(gen_img_scores, valid)
+            aux_loss = F.cross_entropy(gen_label_preds, real_labels)
 
-        return (
-            F.binary_cross_entropy_with_logits(gen_img_scores, valid)
-            + self.lambda_aux_loss * F.cross_entropy(gen_label_preds, real_labels)
-        ) / 2
+        return img_loss + self.lambda_aux_loss * aux_loss
 
     def discriminator_loss(
         self,

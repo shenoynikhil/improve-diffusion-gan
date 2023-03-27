@@ -8,6 +8,10 @@ import torchmetrics.functional as Fm
 from torchvision.utils import save_image
 
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+
 def compute_metrics(
     real_pred,
     fake_pred,
@@ -56,7 +60,7 @@ def compute_metrics(
     pred = np.where(pred >= 0.5, 1, 0)
     d_acc = np.mean(pred == gt)
 
-    if not multi_label:
+    if multi_label:
         class_pred = np.concatenate(
             [real_aux.data.cpu().numpy(), fake_aux.data.cpu().numpy()], axis=0
         )
@@ -66,7 +70,7 @@ def compute_metrics(
         # considering multi label binary case, therefore num_classes = 2
         class_pred = torch.cat([real_aux, fake_aux], axis=0).detach().cpu()
         c_gt = torch.cat([labels, gen_labels], axis=0).detach().cpu()
-        class_pred = 1.0 * (np.sig(class_pred) > 0.5)
+        class_pred = 1.0 * (sigmoid(class_pred) > 0.5)
         d_class_acc = Fm.accuracy(class_pred, c_gt, num_classes=2)
 
     return {

@@ -28,17 +28,33 @@ class SpectralNormACGAN(Vanilla_ACGAN):
         super().__init__(*args, **kwargs)
         self.loss_type = loss_type
 
-    def generator_loss(self, y_hat, y):
+    def generator_loss(self, gen_img_scores, gen_label_preds, real_labels):
         """Binary Cross Entropy loss between y_hat and y"""
+        device = gen_img_scores.device
+        valid = torch.ones(gen_img_scores.size(0), 1).to(device)
+
         if self.loss_type == "wasserstein":
             if self.top_k_critic > 0:
-                y_hat, _ = torch.topk(y_hat, self.initial_k, dim=0)
-            return -torch.mean(y_hat)
+                valid_gen_pred, indices = torch.topk(gen_img_scores, self.initial_k, dim=0)
+                img_loss = -torch.mean(valid_gen_pred)
+                aux_loss = F.cross_entropy(
+                    gen_label_preds[indices.squeeze()], real_labels[indices.squeeze()]
+                )
+            else:
+                img_loss = -torch.mean(gen_img_scores)
+                aux_loss = F.cross_entropy(gen_label_preds, real_labels)
         else:
             if self.top_k_critic > 0:
-                y_hat, _ = torch.topk(y_hat, self.initial_k, dim=0)
-                y = torch.ones_like(y_hat).to(y_hat.device)
-            return F.binary_cross_entropy_with_logits(y_hat, y)
+                valid_top_k, indices = torch.topk(gen_img_scores, self.initial_k, dim=0)
+                img_loss = F.binary_cross_entropy_with_logits(valid_top_k, valid[indices.squeeze()])
+                aux_loss = F.cross_entropy(
+                    gen_label_preds[indices.squeeze()], real_labels[indices.squeeze()]
+                )
+            else:
+                img_loss = F.binary_cross_entropy_with_logits(gen_img_scores, valid)
+                aux_loss = F.cross_entropy(gen_label_preds, real_labels)
+
+        return img_loss + self.lambda_aux_loss * aux_loss
 
     def discriminator_loss(
         self,

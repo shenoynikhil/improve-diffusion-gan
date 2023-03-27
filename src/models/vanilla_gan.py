@@ -315,6 +315,7 @@ class VanillaGAN(LightningModule):
                 fake_pred,
                 valid,
                 fake,
+                apply_sigmoid=True,
             )
 
             self.log_dict(metrics, prog_bar=True)
