@@ -73,7 +73,7 @@ class WACGAN_GP(Vanilla_ACGAN):
 
         # Peform diffusion if module present
         if self.diffusion_module is not None:
-            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx)
+            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx, auxillary=True)
 
         # train generator
         if optimizer_idx == 0:

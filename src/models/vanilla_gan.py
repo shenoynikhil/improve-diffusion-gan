@@ -233,7 +233,7 @@ class VanillaGAN(LightningModule):
 
         return F.binary_cross_entropy_with_logits(y_hat, y)
 
-    def perform_diffusion_ops(self, imgs, gen_imgs, batch_idx):
+    def perform_diffusion_ops(self, imgs, gen_imgs, batch_idx, auxillary: bool = False):
         """Perform diffusion operations"""
         batch_size = len(imgs)
 
@@ -250,11 +250,9 @@ class VanillaGAN(LightningModule):
             with torch.no_grad():
                 # from original code
                 C = batch_size * self.ada_interval / (self.ada_kimg * 1000)
-                adjust = (
-                    (torch.sign(self.discriminator(imgs).mean() - self.ada_target) * C)
-                    .cpu()
-                    .numpy()
-                )
+                out = self.discriminator(imgs)
+                out = out if not auxillary else out[0]  # for auxillary discriminator
+                adjust = (torch.sign(out.mean() - self.ada_target) * C).cpu().numpy()
                 self.diffusion_module.p = (self.diffusion_module.p + adjust).clip(min=0, max=1.0)
                 self.diffusion_module.update_T()
 
