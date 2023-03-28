@@ -4,9 +4,9 @@ lambda_term: 10
 lr: 0.0001
 output_dir: ${paths.output_dir}
 generator:
-  _target_: src.models.wgan.Generator
+  _target_: src.models.wgan_gp.Generator
   channels: 3
   latent_dim: 100
 discriminator:
-  _target_: src.models.wgan.Discriminator
+  _target_: src.models.wgan_gp.Discriminator
   channels: 3
