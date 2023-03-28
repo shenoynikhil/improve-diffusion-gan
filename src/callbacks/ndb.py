@@ -320,18 +320,13 @@ class NDB_Score(pl.Callback):
 
     def __init__(self, k=100, whitening=True) -> None:
         super().__init__()
-        self.gen_imgs = None
         self.real_imgs = None
 
         ## ndb config
         self.k = k
         self.whitening = whitening
         self.numTrainBatches = 156  
-        self.numTestBatches = 39
-
-    def on_train_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs: STEP_OUTPUT, batch: Any, batch_idx: int) -> None:
-        self.gen_imgs = outputs[0]['gen_imgs'].detach()
-    
+        self.numTestBatches = 39    
 
     def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         if (trainer.current_epoch + 1)%self.every_n_epochs != 0:
