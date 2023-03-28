@@ -5,4 +5,5 @@ pandas
 pyrootutils
 pytorch_lightning==1.9.4
 PyYAML
+scikit-learn==1.2.2
 wandb==0.13.11
