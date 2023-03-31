@@ -1,0 +1,12 @@
+# @package _global_
+
+task_name: cifar10_wacgan_gp_diffusion_window3
+
+defaults:
+  - /model/diffusion_module: window.yaml
+  - override /datamodule: cifar10.yaml
+  - override /model: wacgan_cifar10.yaml
+
+model:
+  diffusion_module:
+    window_length: 3
