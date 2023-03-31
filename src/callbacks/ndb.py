@@ -102,7 +102,7 @@ class NDB:
                 "Training data size should be ~500 times the number of bins (for reasonable speed and accuracy)"
             )
 
-        clusters = KMeans(n_clusters=k, max_iter=100, n_jobs=-1).fit(
+        clusters = KMeans(n_clusters=k, max_iter=100).fit(
             whitened_samples[:, self.used_d_indices]
         )
 
@@ -327,11 +327,9 @@ def real_samples(numTrainBatches, dataloader, batch_size):
         real = data[0].numpy()
         real_batches.append(real)
 
-    image_size = real_batches[0].shape[1]
-    nc = real_batches[0].shape[-1]
-    real_batches = np.array(real_batches)
+    real_combined = np.concatenate(real_batches)
 
-    real_combined = real_batches.reshape(numTrainBatches * batch_size, nc, image_size, image_size)
+
     del real_batches
     gc.collect()
 
@@ -349,19 +347,7 @@ def generated_fakes(numTestBatches, netG, batch_size, nz, device):
         fake = netG(noise).detach().cpu().numpy()
         generated_batches.append(fake)
 
-    image_size = generated_batches[0].shape[1]
-    generated_batches = np.array(generated_batches)
-
-    print(len(generated_batches))
-    # Display a sample
-    plt.imshow(np.transpose(generated_batches[0][0], (1, 2, 0)))
-
-    # gen_combined = generated_batches[0]
-    # for i in range(1,len(generated_batches)):
-    #     gen_combined = np.concatenate((gen_combined, generated_batches[i]))
-    gen_combined = generated_batches.reshape(
-        numTestBatches * batch_size, nz, image_size, image_size
-    )
+    gen_combined = np.concatenate(generated_batches)
     del generated_batches
     gc.collect()
 
@@ -369,7 +355,7 @@ def generated_fakes(numTestBatches, netG, batch_size, nz, device):
 
 
 class NDB_Score(pl.Callback):
-    def __init__(self, k=100, whitening=True) -> None:
+    def __init__(self, k=100, whitening=True, every_n_epochs=1) -> None:
         super().__init__()
         self.real_imgs = None
 
@@ -378,6 +364,7 @@ class NDB_Score(pl.Callback):
         self.whitening = whitening
         self.numTrainBatches = 156
         self.numTestBatches = 39
+        self.every_n_epochs = every_n_epochs
 
     def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         if (trainer.current_epoch + 1) % self.every_n_epochs != 0:
@@ -395,18 +382,14 @@ class NDB_Score(pl.Callback):
         gen_imgs = generated_fakes(
             self.numTestBatches, gan.generator, batch_size, gan.latent_dim, gan.device
         )
-
-        img_size = self.real_imgs.shape[-2]
-        nc = self.real_imgs.shape[-1]
-        feat_dim = img_size**2 * nc
-        train_size = self.numTrainBatches * batch_size
-        test_size = self.numTestBatches * batch_size
-
-        real_imgs = self.real_imgs.reshape(train_size, feat_dim)
-        gen_imgs = gen_imgs.reshape(test_size, feat_dim)
+        
+        real_imgs = self.real_imgs.reshape(len(self.real_imgs), -1)
+        gen_imgs = gen_imgs.reshape(len(gen_imgs), -1)
 
         ndb = NDB(training_data=real_imgs, number_of_bins=self.k, whitening=self.whitening)
         results = ndb.evaluate(gen_imgs)
 
         ndb_k = float(results["NDB"]) / ndb.number_of_bins
-        pl_module.log({"ndb_k": ndb_k, "JS": results["JS"]})
+        pl_module.log("ndb", results["NDB"], on_epoch=True, on_step=False)
+        pl_module.log("ndb_k", ndb_k, on_epoch=True, on_step=False)
+        pl_module.log("JS", results["JS"], on_epoch=True, on_step=False)
