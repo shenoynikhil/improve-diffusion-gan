@@ -32,31 +32,12 @@ class WindowDiffusion(Diffusion):
         self.window_length = window_length
         super().__init__(*args, **kwargs)
 
-    def update_T(self):
-        """Adaptively updating T"""
-        # if self.aug_type == "ada":
-        #     _p = min(self.p, self.ada_maxp) if self.ada_maxp else self.p
-        #     self.aug.p.copy_(torch.tensor(_p))
-
-        t_adjust = round(self.p * self.t_add)
-        t = np.clip(int(self.t_min + t_adjust), a_min=self.t_min, a_max=self.t_max)
-
-        # update beta values according to new T
-        self.set_diffusion_process(t, self.beta_schedule)
-
-        # sampling t
-        # more zeros to allow for non-denoised images
-        self.t_epl = np.zeros(64, dtype=np.int)
-        diffusion_ind = 32
-        t_diffusion = np.zeros((diffusion_ind,)).astype(np.int)
-        # subtract by window length to avoid sampling timesteps that overflow
-        t = t - (self.window_length - 1)
-        if self.ts_dist == "priority":
-            prob_t = np.arange(t) / np.arange(t).sum()
-            t_diffusion = np.random.choice(np.arange(1, t + 1), size=diffusion_ind, p=prob_t)
-        elif self.ts_dist == "uniform":
-            t_diffusion = np.random.choice(np.arange(1, t + 1), size=diffusion_ind)
-        self.t_epl[:diffusion_ind] = t_diffusion
+    def sample_t(self, batch_size):
+        # sample time steps with length of window_length from t_epl for each sample
+        # shape: (batch_size, window_length)
+        return torch.from_numpy(
+            np.random.choice(self.t_epl, size=batch_size * self.window_length, replace=True)
+        ).view(batch_size, -1)
 
     def forward(self, x_0, t):
         x_0 = self.aug(x_0)
@@ -66,11 +47,8 @@ class WindowDiffusion(Diffusion):
         alphas_bar_sqrt = self.alphas_bar_sqrt.to(device)
         one_minus_alphas_bar_sqrt = self.one_minus_alphas_bar_sqrt.to(device)
 
-        t = t.to(device)
         # modify t by adding a window of timesteps at each sample
-        t = t.view(-1, 1) + torch.arange(
-            0, self.window_length, dtype=torch.int32, device=device
-        ).view(1, -1)
+        t = t.to(device)
         x_t = q_sample_window(
             x_0,
             alphas_bar_sqrt,
