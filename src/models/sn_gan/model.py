@@ -51,10 +51,6 @@ class SpectralNormGAN(VanillaGAN):
         imgs, _ = batch
         batch_size = imgs.size(0)
 
-        # sets to same device as imgs
-        valid = torch.ones(batch_size, 1).type_as(imgs)
-        fake = torch.zeros(batch_size, 1).type_as(imgs)
-
         # generate noise
         z = torch.normal(0, 1, (batch_size, self.latent_dim, 1, 1)).type_as(imgs)
 
@@ -67,6 +63,10 @@ class SpectralNormGAN(VanillaGAN):
         # perform diffusion ops
         if self.diffusion_module is not None:
             imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx)
+
+        # sets to same device as imgs
+        valid = torch.ones(batch_size, 1).type_as(imgs)
+        fake = torch.zeros(batch_size, 1).type_as(imgs)
 
         # train generator
         if optimizer_idx == 0:

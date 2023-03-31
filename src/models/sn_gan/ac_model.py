@@ -89,10 +89,6 @@ class SpectralNormACGAN(Vanilla_ACGAN):
         imgs, real_labels = batch
         batch_size = imgs.size(0)
 
-        # sets to same device as imgs
-        valid = torch.ones(batch_size, 1).type_as(imgs)
-        fake = torch.zeros(batch_size, 1).type_as(imgs)
-
         # generate noise
         z = torch.normal(0, 1, (batch_size, self.latent_dim)).type_as(imgs)
         gen_labels = torch.randint(0, self.n_classes, (batch_size,)).type_as(real_labels)
@@ -106,6 +102,10 @@ class SpectralNormACGAN(Vanilla_ACGAN):
         # Peform diffusion if module present
         if self.diffusion_module is not None:
             imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx, auxillary=True)
+
+        # sets to same device as imgs
+        valid = torch.ones(batch_size, 1).type_as(imgs)
+        fake = torch.zeros(batch_size, 1).type_as(imgs)
 
         # train generator
         if optimizer_idx == 0:
