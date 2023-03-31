@@ -1,4 +1,5 @@
 defaults:
   - is.yaml
   - fid.yaml
+  - ndb.yaml
   - _self_
