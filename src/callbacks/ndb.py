@@ -337,14 +337,13 @@ def real_samples(numTrainBatches, dataloader, batch_size):
 
 
 @torch.no_grad()
-def generated_fakes(numTestBatches, netG, batch_size, nz, device):
+def generated_fakes(numTestBatches, gan, batch_size, nz, device):
     # Generate fake samples for testing (about 10% of total data - 20000 samples)
 
     generated_batches = []
     for i in range(numTestBatches):
-        noise = torch.randn(batch_size, nz, 1, 1, device=device)
         # Generate fake image batch with G
-        fake = netG(noise).detach().cpu().numpy()
+        fake = gan.generate_images(batch_size).detach().cpu().numpy()
         generated_batches.append(fake)
 
     gen_combined = np.concatenate(generated_batches)
@@ -380,7 +379,7 @@ class NDB_Score(pl.Callback):
             )
 
         gen_imgs = generated_fakes(
-            self.numTestBatches, gan.generator, batch_size, gan.latent_dim, gan.device
+            self.numTestBatches, gan, batch_size, gan.latent_dim, gan.device
         )
         
         real_imgs = self.real_imgs.reshape(len(self.real_imgs), -1)
