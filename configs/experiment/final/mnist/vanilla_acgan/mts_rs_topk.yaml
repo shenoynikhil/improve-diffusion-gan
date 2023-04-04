@@ -4,8 +4,8 @@ task_name: mnist_vanilla_acgan_mts_rs_topk
 
 defaults:
   - /model/diffusion_module: window.yaml
-  - override /datamodule: mnist.yaml
-  - override /model: vanilla_acgan_mnist.yaml
+  - override /datamodule: mnist-3-channel.yaml
+  - override /model: vanilla_acgan_mnist-3-channel.yaml
 
 model:
   top_k_critic: ${datamodule.batch_size}
