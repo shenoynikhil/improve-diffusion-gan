@@ -1,0 +1,12 @@
+# @package _global_
+
+task_name: cifar10_wgan_gp_mts
+
+defaults:
+  - /model/diffusion_module: window.yaml
+  - override /datamodule: cifar10.yaml
+  - override /model: wgan_cifar10.yaml
+
+model:
+  diffusion_module:
+    window_length: 3

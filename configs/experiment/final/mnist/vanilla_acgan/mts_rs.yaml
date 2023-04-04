@@ -1,0 +1,13 @@
+# @package _global_
+
+task_name: mnist_vanilla_acgan_mts_rs
+
+defaults:
+  - /model/diffusion_module: window.yaml
+  - override /datamodule: mnist.yaml
+  - override /model: vanilla_acgan_mnist.yaml
+
+model:
+  diffusion_module:
+    window_length: 3
+    reverse: True
