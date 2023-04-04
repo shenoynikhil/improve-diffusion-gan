@@ -1,0 +1,14 @@
+# @package _global_
+
+task_name: cifar10_wgan_gp_mts_rs_topk
+
+defaults:
+  - /model/diffusion_module: window.yaml
+  - override /datamodule: cifar10.yaml
+  - override /model: wgan_cifar10.yaml
+
+model:
+  top_k_critic: ${datamodule.batch_size}
+  diffusion_module:
+    reverse: True
+    window_length: 3

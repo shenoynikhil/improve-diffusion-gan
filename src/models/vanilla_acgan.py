@@ -193,7 +193,14 @@ class Vanilla_ACGAN(VanillaGAN):
 
         # Peform diffusion if module present
         if self.diffusion_module is not None:
-            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx, auxillary=True)
+            imgs, gen_imgs, real_labels, gen_labels = self.perform_diffusion_ops(
+                imgs,
+                gen_imgs,
+                batch_idx,
+                real_labels=real_labels,
+                gen_labels=gen_labels,
+                auxillary=True,
+            )
 
         # sets to same device as imgs
         valid = torch.ones(batch_size, 1).type_as(imgs)

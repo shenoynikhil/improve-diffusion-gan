@@ -1,0 +1,8 @@
+# @package _global_
+
+task_name: mnist_wgan_gp_baseline
+
+defaults:
+  - /model/diffusion_module: base.yaml
+  - override /datamodule: mnist-3-channel.yaml
+  - override /model: wgan_mnist-3-channel.yaml

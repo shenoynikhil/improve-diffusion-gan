@@ -156,7 +156,7 @@ class WGAN_GP(VanillaGAN):
         step_output = {"gen_imgs": gen_imgs.detach().cpu()}
 
         if self.diffusion_module is not None:
-            imgs, gen_imgs = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx)
+            imgs, gen_imgs, _, _ = self.perform_diffusion_ops(imgs, gen_imgs, batch_idx)
 
         # train generator
         if optimizer_idx == 0:

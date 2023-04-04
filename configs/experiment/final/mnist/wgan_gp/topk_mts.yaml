@@ -1,0 +1,13 @@
+# @package _global_
+
+task_name: mnist_wgan_gp_topk_mts
+
+defaults:
+  - /model/diffusion_module: window.yaml
+  - override /datamodule: mnist-3-channel.yaml
+  - override /model: wgan_mnist-3-channel.yaml
+
+model:
+  top_k_critic: ${datamodule.batch_size}
+  diffusion_module:
+    window_length: 3

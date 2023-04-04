@@ -233,7 +233,9 @@ class VanillaGAN(LightningModule):
 
         return F.binary_cross_entropy_with_logits(y_hat, y)
 
-    def perform_diffusion_ops(self, imgs, gen_imgs, batch_idx, auxillary: bool = False):
+    def perform_diffusion_ops(
+        self, imgs, gen_imgs, batch_idx, real_labels=None, gen_labels=None, auxillary: bool = False
+    ):
         """Perform diffusion operations"""
         batch_size = len(imgs)
 
@@ -256,7 +258,13 @@ class VanillaGAN(LightningModule):
                 self.diffusion_module.p = (self.diffusion_module.p + adjust).clip(min=0, max=1.0)
                 self.diffusion_module.update_T()
 
-        return imgs, gen_imgs
+        # modify real labels if time steps > 1
+        time_steps = getattr(self.diffusion_module, "window_length", 1)
+        if time_steps > 1 and real_labels is not None:
+            real_labels = torch.repeat_interleave(real_labels, time_steps, dim=0)
+            gen_labels = torch.repeat_interleave(gen_labels, time_steps, dim=0)
+
+        return imgs, gen_imgs, real_labels, gen_labels
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, _ = batch

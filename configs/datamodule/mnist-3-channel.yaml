@@ -7,7 +7,7 @@ transforms:
     - _target_: torchvision.transforms.Grayscale
       num_output_channels: 3
     - _target_: torchvision.transforms.Resize
-      size: 28
+      size: 32
     - _target_: torchvision.transforms.ToTensor
     - _target_: torchvision.transforms.Normalize
       mean: 0.5

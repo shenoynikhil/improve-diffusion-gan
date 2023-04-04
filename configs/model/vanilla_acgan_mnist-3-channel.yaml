@@ -1,0 +1,15 @@
+_target_: src.models.Vanilla_ACGAN
+lr: 0.0001
+output_dir: ${paths.output_dir}
+lambda_aux_loss: 0.5
+generator:
+  _target_: src.models.vanilla_acgan.ConditionalGenerator
+  latent_dim: 100
+  channels: 3
+  img_size: 32
+  n_classes: 10
+discriminator:
+  _target_: src.models.vanilla_acgan.ConditionalDiscriminator
+  channels: 3
+  img_size: 32
+  n_classes: 10

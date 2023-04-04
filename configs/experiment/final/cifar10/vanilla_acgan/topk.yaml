@@ -1,0 +1,11 @@
+# @package _global_
+
+task_name: cifar10_vanilla_acgan_topk
+
+defaults:
+  - /model/diffusion_module: base.yaml
+  - override /datamodule: cifar10.yaml
+  - override /model: vanilla_acgan_cifar10.yaml
+
+model:
+  top_k_critic: ${datamodule.batch_size}
