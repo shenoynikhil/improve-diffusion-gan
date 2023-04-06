@@ -3,6 +3,7 @@
 import os
 from typing import List
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -348,6 +349,11 @@ class VanillaGAN(LightningModule):
             self.initial_k = max(min_value_possible, int(0.99 * self.initial_k))
             # log value of k
             self.log("k", self.initial_k, prog_bar=True)
+
+        # log diffusion module t_epl non-zero value mean
+        if self.diffusion_module is not None:
+            t_epl = self.diffusion_module.t_epl
+            self.log("t_epl_non_zero_mean", np.mean(t_epl[t_epl != 0]), prog_bar=True)
 
     def generate_images(self, batch_size: int):
         with torch.no_grad():

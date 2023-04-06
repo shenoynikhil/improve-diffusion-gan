@@ -127,6 +127,7 @@ class Diffusion(torch.nn.Module):
         t_min=10,
         t_max=1000,
         noise_std=0.05,
+        diffusion_ind_length=32,
         aug="no",
         ada_maxp=None,
         ts_dist="priority",
@@ -138,6 +139,7 @@ class Diffusion(torch.nn.Module):
         self.ada_maxp = ada_maxp
         self.noise_type = self.base_noise_type = "gauss"
         self.beta_schedule = beta_schedule
+        self.diffusion_ind_length = diffusion_ind_length
         self.beta_start = beta_start
         self.beta_end = beta_end
         self.t_min = t_min
@@ -189,14 +191,16 @@ class Diffusion(torch.nn.Module):
 
         # sampling t
         self.t_epl = np.zeros(64, dtype=np.int)
-        diffusion_ind = 32
-        t_diffusion = np.zeros((diffusion_ind,)).astype(np.int)
+
+        t_diffusion = np.zeros((self.diffusion_ind_length,)).astype(np.int)
         if self.ts_dist == "priority":
             prob_t = np.arange(t) / np.arange(t).sum()
-            t_diffusion = np.random.choice(np.arange(1, t + 1), size=diffusion_ind, p=prob_t)
+            t_diffusion = np.random.choice(
+                np.arange(1, t + 1), size=self.diffusion_ind_length, p=prob_t
+            )
         elif self.ts_dist == "uniform":
-            t_diffusion = np.random.choice(np.arange(1, t + 1), size=diffusion_ind)
-        self.t_epl[:diffusion_ind] = t_diffusion
+            t_diffusion = np.random.choice(np.arange(1, t + 1), size=self.diffusion_ind_length)
+        self.t_epl[: self.diffusion_ind_length] = t_diffusion
 
     def sample_t(self, batch_size):
         return torch.from_numpy(np.random.choice(self.t_epl, size=batch_size, replace=True))
