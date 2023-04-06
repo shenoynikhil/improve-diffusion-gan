@@ -11,3 +11,4 @@ model:
   diffusion_module:
     window_length: 3
     reverse: True
+    diffusion_ind_length: 56

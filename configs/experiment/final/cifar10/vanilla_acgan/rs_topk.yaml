@@ -11,3 +11,4 @@ model:
   top_k_critic: ${datamodule.batch_size}
   diffusion_module:
     reverse: True
+    diffusion_ind_length: 56

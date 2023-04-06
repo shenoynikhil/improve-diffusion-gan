@@ -1,6 +1,6 @@
 # @package _global_
 
-task_name: cifar10_wgan_gp_rs
+task_name: rs_ablation/len56
 
 defaults:
   - /model/diffusion_module: base.yaml

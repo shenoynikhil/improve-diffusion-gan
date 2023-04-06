@@ -1,6 +1,6 @@
 # @package _global_
 
-task_name: cifar10_wgan_gp_rs
+task_name: rs_ablation/len64
 
 defaults:
   - /model/diffusion_module: base.yaml
@@ -10,4 +10,4 @@ defaults:
 model:
   diffusion_module:
     reverse: True
-    diffusion_ind_length: 56
+    diffusion_ind_length: 64
