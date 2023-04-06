@@ -48,5 +48,6 @@ pre-commit install
 ```
 
 #### Contributors
-- [Nikhil Shenoy](https://shenoynikhil.com/about)
+- [Nikhil Shenoy](https://github.com/shenoynikhil)
+- [Matthew Tang](https://github.com/Goulustis)
 
