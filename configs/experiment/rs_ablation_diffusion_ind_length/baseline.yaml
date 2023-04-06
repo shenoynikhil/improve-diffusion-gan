@@ -1,13 +1,8 @@
 # @package _global_
 
-task_name: cifar10_wgan_gp_rs
+task_name: rs_ablation/baseline_no_reverse
 
 defaults:
   - /model/diffusion_module: base.yaml
   - override /datamodule: cifar10.yaml
   - override /model: wgan_cifar10.yaml
-
-model:
-  diffusion_module:
-    reverse: True
-    diffusion_ind_length: 56

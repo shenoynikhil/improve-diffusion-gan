@@ -62,15 +62,34 @@ def get_beta_schedule(beta_schedule, beta_start, beta_end, num_diffusion_timeste
     return betas
 
 
-def q_sample(x_0, alphas_bar_sqrt, one_minus_alphas_bar_sqrt, t, noise_type="gauss", noise_std=1.0):
+def q_sample(
+    x_0,
+    alphas_bar_sqrt,
+    one_minus_alphas_bar_sqrt,
+    t,
+    noise_type="gauss",
+    noise_std=1.0,
+    reverse=False,
+):
     if noise_type == "gauss":
         noise = torch.randn_like(x_0, device=x_0.device) * noise_std
     elif noise_type == "bernoulli":
         noise = (torch.bernoulli(torch.ones_like(x_0) * 0.5) * 2 - 1.0) * noise_std
     else:
         raise NotImplementedError(noise_type)
-    alphas_t_sqrt = alphas_bar_sqrt[t].view(-1, 1, 1, 1)
-    one_minus_alphas_bar_t_sqrt = one_minus_alphas_bar_sqrt[t].view(-1, 1, 1, 1)
+
+    if reverse:
+        # use alpha_bar_sqrt where t == 0 rest one_minus_alphas_bar_sqrt
+        alphas_t_sqrt = torch.where(t == 0, alphas_bar_sqrt[t], one_minus_alphas_bar_sqrt[t]).view(
+            -1, 1, 1, 1
+        )
+        one_minus_alphas_bar_t_sqrt = torch.where(
+            t == 0, one_minus_alphas_bar_sqrt[t], alphas_bar_sqrt[t]
+        ).view(-1, 1, 1, 1)
+    else:
+        alphas_t_sqrt = alphas_bar_sqrt[t].view(-1, 1, 1, 1)
+        one_minus_alphas_bar_t_sqrt = one_minus_alphas_bar_sqrt[t].view(-1, 1, 1, 1)
+
     x_t = alphas_t_sqrt * x_0 + one_minus_alphas_bar_t_sqrt * noise
     return x_t
 
@@ -108,6 +127,7 @@ class Diffusion(torch.nn.Module):
         t_min=10,
         t_max=1000,
         noise_std=0.05,
+        diffusion_ind_length=32,
         aug="no",
         ada_maxp=None,
         ts_dist="priority",
@@ -119,6 +139,7 @@ class Diffusion(torch.nn.Module):
         self.ada_maxp = ada_maxp
         self.noise_type = self.base_noise_type = "gauss"
         self.beta_schedule = beta_schedule
+        self.diffusion_ind_length = diffusion_ind_length
         self.beta_start = beta_start
         self.beta_end = beta_end
         self.t_min = t_min
@@ -153,9 +174,6 @@ class Diffusion(torch.nn.Module):
         alphas = self.alphas = 1.0 - betas
         alphas_cumprod = torch.cat([torch.tensor([1.0]), alphas.cumprod(dim=0)])
 
-        if self.reverse:
-            alphas_cumprod = 1 - alphas_cumprod
-
         self.alphas_bar_sqrt = torch.sqrt(alphas_cumprod)
         self.one_minus_alphas_bar_sqrt = torch.sqrt(1 - alphas_cumprod)
 
@@ -173,14 +191,16 @@ class Diffusion(torch.nn.Module):
 
         # sampling t
         self.t_epl = np.zeros(64, dtype=np.int)
-        diffusion_ind = 32
-        t_diffusion = np.zeros((diffusion_ind,)).astype(np.int)
+
+        t_diffusion = np.zeros((self.diffusion_ind_length,)).astype(np.int)
         if self.ts_dist == "priority":
             prob_t = np.arange(t) / np.arange(t).sum()
-            t_diffusion = np.random.choice(np.arange(1, t + 1), size=diffusion_ind, p=prob_t)
+            t_diffusion = np.random.choice(
+                np.arange(1, t + 1), size=self.diffusion_ind_length, p=prob_t
+            )
         elif self.ts_dist == "uniform":
-            t_diffusion = np.random.choice(np.arange(1, t + 1), size=diffusion_ind)
-        self.t_epl[:diffusion_ind] = t_diffusion
+            t_diffusion = np.random.choice(np.arange(1, t + 1), size=self.diffusion_ind_length)
+        self.t_epl[: self.diffusion_ind_length] = t_diffusion
 
     def sample_t(self, batch_size):
         return torch.from_numpy(np.random.choice(self.t_epl, size=batch_size, replace=True))
@@ -201,6 +221,7 @@ class Diffusion(torch.nn.Module):
             t,
             noise_type=self.noise_type,
             noise_std=self.noise_std,
+            reverse=self.reverse,
         )
         return x_t, t.view(-1, 1)
 
