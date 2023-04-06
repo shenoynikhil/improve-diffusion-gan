@@ -1,0 +1,13 @@
+# @package _global_
+
+task_name: rs_ablation/len48
+
+defaults:
+  - /model/diffusion_module: base.yaml
+  - override /datamodule: cifar10.yaml
+  - override /model: wgan_cifar10.yaml
+
+model:
+  diffusion_module:
+    reverse: True
+    diffusion_ind_length: 48
