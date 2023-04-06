@@ -10,3 +10,4 @@ defaults:
 model:
   diffusion_module:
     reverse: True
+    diffusion_ind_length: 56
