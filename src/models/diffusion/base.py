@@ -62,15 +62,34 @@ def get_beta_schedule(beta_schedule, beta_start, beta_end, num_diffusion_timeste
     return betas
 
 
-def q_sample(x_0, alphas_bar_sqrt, one_minus_alphas_bar_sqrt, t, noise_type="gauss", noise_std=1.0):
+def q_sample(
+    x_0,
+    alphas_bar_sqrt,
+    one_minus_alphas_bar_sqrt,
+    t,
+    noise_type="gauss",
+    noise_std=1.0,
+    reverse=False,
+):
     if noise_type == "gauss":
         noise = torch.randn_like(x_0, device=x_0.device) * noise_std
     elif noise_type == "bernoulli":
         noise = (torch.bernoulli(torch.ones_like(x_0) * 0.5) * 2 - 1.0) * noise_std
     else:
         raise NotImplementedError(noise_type)
-    alphas_t_sqrt = alphas_bar_sqrt[t].view(-1, 1, 1, 1)
-    one_minus_alphas_bar_t_sqrt = one_minus_alphas_bar_sqrt[t].view(-1, 1, 1, 1)
+
+    if reverse:
+        # use alpha_bar_sqrt where t == 0 rest one_minus_alphas_bar_sqrt
+        alphas_t_sqrt = torch.where(t == 0, alphas_bar_sqrt[t], one_minus_alphas_bar_sqrt[t]).view(
+            -1, 1, 1, 1
+        )
+        one_minus_alphas_bar_t_sqrt = torch.where(
+            t == 0, one_minus_alphas_bar_sqrt[t], alphas_bar_sqrt[t]
+        ).view(-1, 1, 1, 1)
+    else:
+        alphas_t_sqrt = alphas_bar_sqrt[t].view(-1, 1, 1, 1)
+        one_minus_alphas_bar_t_sqrt = one_minus_alphas_bar_sqrt[t].view(-1, 1, 1, 1)
+
     x_t = alphas_t_sqrt * x_0 + one_minus_alphas_bar_t_sqrt * noise
     return x_t
 
@@ -153,9 +172,6 @@ class Diffusion(torch.nn.Module):
         alphas = self.alphas = 1.0 - betas
         alphas_cumprod = torch.cat([torch.tensor([1.0]), alphas.cumprod(dim=0)])
 
-        if self.reverse:
-            alphas_cumprod = 1 - alphas_cumprod
-
         self.alphas_bar_sqrt = torch.sqrt(alphas_cumprod)
         self.one_minus_alphas_bar_sqrt = torch.sqrt(1 - alphas_cumprod)
 
@@ -201,6 +217,7 @@ class Diffusion(torch.nn.Module):
             t,
             noise_type=self.noise_type,
             noise_std=self.noise_std,
+            reverse=self.reverse,
         )
         return x_t, t.view(-1, 1)
 
