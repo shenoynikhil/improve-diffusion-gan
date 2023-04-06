@@ -8,6 +8,11 @@ The following GANs are supported,
 * Wasserstein GAN with Gradient Penalty (WGAN_GP)
 * Spectral Normalization GAN (SN_GAN)
 
+Our modifications are,
+* Multiple Time Step Noise (mts)
+* Reverse Strategy (rs): More noise at the beginning of the diffusion process and gradually decrease it.
+* Top-K Training (tk): Only use the top-k samples to train the discriminator. [Paper](https://arxiv.org/abs/2002.06224)
+
 ### Setup
 ```bash
 # Create a new conda environment
