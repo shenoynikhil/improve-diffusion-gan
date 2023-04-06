@@ -1,4 +1,12 @@
 # Improved Training Techniques for Diffusion-GANs
+
+[![python](https://img.shields.io/badge/-Python_3.9-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
+[![lightning](https://img.shields.io/badge/-Lightning_1.9.4-792ee5?logo=pytorchlightning&logoColor=white)](https://pytorchlightning.ai/)
+[![hydra](https://img.shields.io/badge/Config-Hydra_1.3.1-89b8cd)](https://hydra.cc/)
+[![black](https://img.shields.io/badge/Code%20Style-Black-black.svg?labelColor=gray)](https://black.readthedocs.io/en/stable/)
+[![isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/) <br>
+
 As part of Course Project in [CPSC533R: Computer Graphics and Computer Vision](https://www.cs.ubc.ca/~rhodin/2022_2023_CPSC_533R/).
 
 Our techniques build upon the original [Diffusion-GAN](https://openreview.net/forum?id=HZf7UbpWHuA) paper.
@@ -27,9 +35,9 @@ pip install -r requirements.txt
 ```
 
 ### Running An Experiment
-Select a experiment config from `experiments/` and run it with the following command:
+Select an experiment config from `configs/experiments/` and run it with the following command:
 ```bash
-python train.py experiment=<path to experiment config>
+python train.py experiment=<path to experiment config without the configs/experiment prefix>
 ```
 
 ### Pre-Commit Hooks
@@ -38,3 +46,7 @@ We use [pre-commit](https://pre-commit.com/) to run a set of checks on the code 
 pip install pre-commit
 pre-commit install
 ```
+
+#### Contributors
+- [Nikhil Shenoy](https://shenoynikhil.com/about)
+
